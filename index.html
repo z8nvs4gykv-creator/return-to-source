@@ -973,185 +973,121 @@ canvas#ab-waveform{width:100%;max-width:420px;height:40px;opacity:.5}
       </div>
     </div><!-- /ab-shell -->
 
-    <!-- spec tabs -->
+    <!-- info tabs -->
     <div class="ab-tabs-row">
-      <button class="ab-tab-btn active" onclick="abShowTab('timing',event)">Timing</button>
-      <button class="ab-tab-btn" onclick="abShowTab('ssml',event)">SSML</button>
-      <button class="ab-tab-btn" onclick="abShowTab('audio',event)">Audio Design</button>
+      <button class="ab-tab-btn active" onclick="abShowTab('meaning',event)">Meaning</button>
+      <button class="ab-tab-btn" onclick="abShowTab('practice',event)">Practice</button>
       <button class="ab-tab-btn" onclick="abShowTab('modes',event)">Modes</button>
-      <button class="ab-tab-btn" onclick="abShowTab('integration',event)">Integration</button>
+      <button class="ab-tab-btn" onclick="abShowTab('layers',event)">Sound Layers</button>
     </div>
 
-    <!-- TAB: TIMING -->
-    <div class="ab-section visible" id="ab-tab-timing">
-      <h2 class="ab-h2">① Mantra Structure &amp; Exact Repetition Timing</h2>
+    <!-- TAB: MEANING -->
+    <div class="ab-section visible" id="ab-tab-meaning">
+      <h2 class="ab-h2">अहम् ब्रह्मास्मि</h2>
       <p class="ab-p">
-        The mantra is structured as a <em>breath-anchored cycle</em> of approximately 28 seconds
-        in Standard mode. Each cycle contains a spoken phase, a resonance phase, and a deep
-        silence phase — mirroring the three states described in Advaita Vedanta. The silence
-        is <em>not empty</em> — it is the most sacred element.
+        <em>Aham Brahmasmi</em> — "I am Brahman." One of the four Mahāvākyas (great sayings)
+        of the Upanishads, from the Brihadaranyaka Upanishad of the Yajur Veda.
       </p>
       <div class="ab-mstatic">
-        <div class="ln">A·hum &nbsp;…&nbsp; Brah·māas·mi</div>
-        <div class="sl">— — — — — — silence — — — — — —</div>
-        <div class="ln">A·hum &nbsp;…&nbsp; Brah·māas·mi</div>
+        <div class="ln">अहम् &nbsp;·&nbsp; ब्रह्मास्मि</div>
+        <div class="sl">Aham &nbsp;·&nbsp; Brahm&amp;āsmi</div>
       </div>
-      <h3 class="ab-h3">Standard Mode — 28-Second Cycle</h3>
-      <div class="ab-tgrid">
-        <div class="th">Time</div><div class="th">Event</div>
-        <div class="td">0.0 s</div><div class="td ev">🔔 Himalayan Bowl strike (pp)</div>
-        <div class="td">1.5 s</div><div class="td ev">"A…" — onset</div>
-        <div class="td">2.0 s</div><div class="td ev">"hum…" — sustain &amp; fade</div>
-        <div class="td">4.5 s</div><div class="td ev">Inter-word breath pause</div>
-        <div class="td">7.3 s</div><div class="td ev">"Brah…" — onset</div>
-        <div class="td">10.8 s</div><div class="td ev">"mi…" — fade to silence</div>
-        <div class="td">12.6 s</div><div class="td nt">♦ Deep silence begins</div>
-        <div class="td">27.0 s</div><div class="td nt">Cycle restarts</div>
-      </div>
-      <h3 class="ab-h3">Syllable Pronunciation &amp; Stress Map</h3>
-      <div class="ab-block"><code>A   · hum      —  Brah  · māas  · mi
-↑       ↓         ↓      ↑      ↓
-breath  resonant  pause  deep   dissolve
-Pitch contour (relative semitones):
-  A      0 st  (root, chest voice)
-  hum   -1 st  (slight descend, nasal resonance)
-  Brah  -2 st  (deeper, from belly)
-  māas  -2 st  (sustained, slightly vibrant)
-  mi    -4 st  (resolve downward, fade to breath)</code></div>
-      <h3 class="ab-h3">Silence Architecture</h3>
       <p class="ab-p">
-        The 14.4-second silence is not a gap — it is the primary instruction. In Ramana Maharshi's
-        teaching, silence (Mouna) is the highest teaching. The ambient layers (tanpura drone,
-        subtle reverb tail) continue through the silence, preventing cognitive disengagement
-        while preserving the spacious quality of pure awareness.
+        <strong>Aham</strong> (अहम्) — I, the pure subject of awareness — not the body, not
+        the mind, not the personality.<br><br>
+        <strong>Brahman</strong> (ब्रह्म) — the infinite, the absolute, the ground of all being.<br><br>
+        <strong>Asmi</strong> (अस्मि) — I am. Not "I will become" or "I was" — but the eternal
+        present tense of existence itself.
+      </p>
+      <p class="ab-p">
+        The teaching is not belief or metaphor — it is direct recognition. The one who hears
+        the mantra and the one who chants it are the same awareness. Repetition is not
+        affirmation but return — a continuous pointing toward what is already true.
       </p>
     </div>
-    <!-- TAB: SSML -->
-    <div class="ab-section" id="ab-tab-ssml">
-      <h2 class="ab-h2">④ SSML Formatted Narration</h2>
+
+    <!-- TAB: PRACTICE -->
+    <div class="ab-section" id="ab-tab-practice">
+      <h2 class="ab-h2">How to Sit With This</h2>
       <p class="ab-p">
-        These SSML documents are ready for Google Cloud Text-to-Speech (Neural2 / WaveNet),
-        Amazon Polly (Neural), or ElevenLabs. Use voice character <strong>Arjun / deep Indian male</strong>
-        or equivalent.
+        This is not music to listen to. It is a mirror to look into.
       </p>
-      <h3 class="ab-h3">Primary SSML — Standard Loop Unit</h3>
-      <div class="ab-block"><code>&lt;speak&gt;
-  &lt;break time="1500ms"/&gt;
-  &lt;prosody rate="x-slow" pitch="-2st" volume="soft"&gt;
-    &lt;phoneme alphabet="ipa" ph="ɐham"&gt;A&lt;/phoneme&gt;
-    &lt;break time="400ms"/&gt;
-    &lt;prosody pitch="-1st" rate="slow"&gt;
-      &lt;phoneme alphabet="ipa" ph="həm"&gt;hum&lt;/phoneme&gt;
-    &lt;/prosody&gt;
-    &lt;break time="2800ms"/&gt;
-    &lt;prosody pitch="-3st" rate="x-slow"&gt;
-      &lt;phoneme alphabet="ipa" ph="braɦmaːsmi"&gt;Brahmaasmi&lt;/phoneme&gt;
-    &lt;/prosody&gt;
-  &lt;/prosody&gt;
-  &lt;break time="14500ms"/&gt;
-&lt;/speak&gt;</code></div>
-      <h3 class="ab-h3">Recommended TTS Voices</h3>
-      <div class="ab-block"><code>Google WaveNet:  hi-IN-Wavenet-C  (male, deep)
-                 en-IN-Wavenet-B  (male, calm Indian English)
-Amazon Polly:    Kajal (neural) — Hindi
-ElevenLabs:      "Adam" voice model
-                 Stability: 0.85, Clarity: 0.60
-Post-processing:
-  1. Pitch shift: -2 to -3 semitones
-  2. Low-pass: 8kHz shelf (-3dB)
-  3. Convolution reverb: 4–6s cathedral IR, 30% wet</code></div>
+      <p class="ab-p">
+        <strong>Before pressing play:</strong> Sit upright. Close your eyes. Let three natural
+        breaths settle the body. Feel the weight of sitting.
+      </p>
+      <p class="ab-p">
+        <strong>As the chanting begins:</strong> Do not follow the words with your thinking mind.
+        Let the sound arrive as sensation — vibration in the chest, in the skull, in the space
+        behind the eyes. The mantra is not addressed to you — it is spoken <em>as</em> you.
+      </p>
+      <p class="ab-p">
+        <strong>During silence:</strong> The pauses between repetitions are the teaching.
+        Resist the urge to anticipate the next chant. Rest in what remains when sound stops.
+        That remainder — aware, still, without content — is what the mantra points to.
+      </p>
+      <p class="ab-p">
+        <strong>Minimum session:</strong> 15 minutes. The first 5 minutes are adjustment.
+        The real sitting begins around minute 8.
+      </p>
     </div>
-    <!-- TAB: AUDIO DESIGN -->
-    <div class="ab-section" id="ab-tab-audio">
-      <h2 class="ab-h2">⑤–⑧ Audio Design Specifications</h2>
-      <h3 class="ab-h3">⑤ Background Ambient Layers</h3>
-      <div class="ab-block"><code>Layer 1 — Tanpura Drone
-  Tuning: Sa=D2 (73.4Hz) → Pa=A2 (110Hz) → Sa=D3 (146.8Hz)
-  Beat freq: 0.8 Hz natural beating between string pairs
 
-Layer 2 — Himalayan Singing Bowl
-  Fundamental: 432 Hz
-  Overtones:   864, 1344, 2016, 2808 Hz
-  Timing:      Struck once at cycle start
-
-Layer 3 — Schroeder Reverb
-  Comb filters: 4 (delays 29.7–43.7 ms)
-  Allpass:      2 (5 ms, 1.7 ms)
-  LPF output:   4800 Hz</code></div>
-      <h3 class="ab-h3">⑥ Volume Balancing Map</h3>
-      <div class="ab-block"><code>Element          Silence Phase   Speaking Phase
-──────────────────────────────────────────
-Mantra voice     —               -12 dBFS
-Tanpura drone    -18 dBFS        -22 dBFS
-Singing bowl     -40 dBFS tail   -24 dBFS tail
-Reverb wet       60% wet         50% wet</code></div>
-      <h3 class="ab-h3">⑦ Reverb Specifications</h3>
-      <div class="ab-block"><code>Mantra Voice Reverb:
-  Type:       Schroeder synthetic (temple / cave)
-  Decay RT60: ~4 seconds
-  Wet/Dry:    35–60% wet (Space slider)
-
-Tanpura Bowl &amp; Bowl sends:
-  30% and 50% wet respectively</code></div>
-    </div>
     <!-- TAB: MODES -->
     <div class="ab-section" id="ab-tab-modes">
-      <h2 class="ab-h2">⑫⑬ Headphones &amp; Sleep Versions</h2>
-      <h3 class="ab-h3">⑫ Headphones Mode</h3>
-      <div class="ab-block"><code>BINAURAL BEAT:
-  Left: 180.0 Hz | Right: 184.0 Hz | Beat: 4.0 Hz (Theta)
-
-MANTRA ADJUSTMENTS:
-  Silence period:  18 seconds (extended)
-  Inter-word gap:  3.5 seconds
-  Voice level:     -14 dBFS (intimate)</code></div>
-      <h3 class="ab-h3">⑬ Sleep Mode</h3>
-      <div class="ab-block"><code>BINAURAL: 3.5 Hz delta
-TIMING:
-  50 s cycle — silence grows to 34 s
-
-VOICE ADJUSTMENTS:
-  Pitch:   -4 to -6 semitones (deeper)
-  Volume:  Starts -16 dBFS, fades gradually</code></div>
-      <h3 class="ab-h3">⑩ Fade-In Design</h3>
-      <div class="ab-block"><code>FADE-IN:
-  0–3 s:  Bowl emerges from silence
-  0–8 s:  Tanpura rises logarithmically
-  8–12 s: First mantra utterance
-
-FADE-OUT:
-  Mantra voice fades → Tanpura drops
-  Final bowl ring → silence</code></div>
+      <h2 class="ab-h2">Three Modes</h2>
+      <div class="ab-mstatic" style="text-align:left;padding:1rem 1.2rem">
+        <div style="margin-bottom:1.2rem">
+          <div class="ln" style="font-size:.8rem;margin-bottom:.3rem">Standard</div>
+          <div class="sl">For open-eye or closed-eye daytime meditation. Natural pace. No binaural.</div>
+        </div>
+        <div style="margin-bottom:1.2rem">
+          <div class="ln" style="font-size:.8rem;margin-bottom:.3rem">Headphones ◎</div>
+          <div class="sl">Adds a 4 Hz theta binaural beat (use with headphones). Deepens inner stillness.
+          Slightly slower cycle with longer silence gaps.</div>
+        </div>
+        <div>
+          <div class="ln" style="font-size:.8rem;margin-bottom:.3rem">Sleep ◑</div>
+          <div class="sl">3.5 Hz delta binaural. Very slow 50-second cycle — mostly silence.
+          Designed to guide awareness inward as the body falls asleep. Use lying down with headphones.</div>
+        </div>
+      </div>
+      <p class="ab-p" style="font-size:.72rem;opacity:.55">
+        Binaural beats require headphones to work — they have no effect through speakers.
+      </p>
     </div>
-    <!-- TAB: INTEGRATION -->
-    <div class="ab-section" id="ab-tab-integration">
-      <h2 class="ab-h2">⑨ App Integration Guide</h2>
-      <h3 class="ab-h3">Web Audio API Architecture</h3>
-      <div class="ab-block"><code>// AUDIO GRAPH
-//
-//  [Tanpura Oscillators × 4]──┐
-//  [Bowl Synth partials × 5]  ├──[Reverb Send]──┐
-//  [Mantra Formant Synth]─────┤                 ├──[Master]──[Out]
-//  [Binaural L/R Oscs]────────┘                 │
-//                                                │
-// Formant synthesis: sawtooth + bandpass chain
-// Nasal: triangle + 280Hz bandpass (hum resonance)</code></div>
-      <h3 class="ab-h3">Session Intention Labels</h3>
-      <div class="ab-block"><code>Suggested durations:
-   5 min  ≈  10 cycles  · Morning primer
-  10 min  ≈  21 cycles  · Daily practice
-  20 min  ≈  42 cycles  · Standard session
-  45 min  ≈  96 cycles  · Deep inquiry</code></div>
-      <h3 class="ab-h3">Philosophical Framing</h3>
-      <div class="ab-block"><code>"The mantra is a boat. It carries you to the other shore.
- Once there, you leave the boat behind."
-
-Onboarding note:
-  "This mantra is not a belief.
-   It is a pointer.
-   Let the sound dissolve into what hears it.
-   Rest in the silence between words.
-   That silence — is what you are."</code></div>
+    <!-- TAB: SOUND LAYERS -->
+    <div class="ab-section" id="ab-tab-layers">
+      <h2 class="ab-h2">What You Are Hearing</h2>
+      <div class="ab-mstatic" style="text-align:left;padding:1rem 1.2rem">
+        <div style="margin-bottom:1.1rem">
+          <div class="ln" style="font-size:.78rem;margin-bottom:.25rem">Human Chanting</div>
+          <div class="sl">Real recording of "Aham Brahmasmi" chanted 108 times. Loops seamlessly.
+          Fades in gently on play, fades out on pause.</div>
+        </div>
+        <div style="margin-bottom:1.1rem">
+          <div class="ln" style="font-size:.78rem;margin-bottom:.25rem">Tanpura Drone</div>
+          <div class="sl">Four oscillators tuned to D2 · A2 · D3, the classical Indian tonic-fifth
+          drone. Natural beating between string pairs creates a living, breathing foundation.</div>
+        </div>
+        <div style="margin-bottom:1.1rem">
+          <div class="ln" style="font-size:.78rem;margin-bottom:.25rem">Himalayan Singing Bowl</div>
+          <div class="sl">Struck at 432 Hz at the start of each visual cycle. Five natural overtones
+          decay for up to 10 seconds — a gentle temporal marker.</div>
+        </div>
+        <div style="margin-bottom:1.1rem">
+          <div class="ln" style="font-size:.78rem;margin-bottom:.25rem">Temple Reverb</div>
+          <div class="sl">Schroeder synthetic reverb — four comb filters, two allpass filters.
+          Simulates a stone temple or cave. Controlled by the Space slider.</div>
+        </div>
+        <div>
+          <div class="ln" style="font-size:.78rem;margin-bottom:.25rem">Binaural Beats (Headphones / Sleep)</div>
+          <div class="sl">Theta (4 Hz) in Headphones mode · Delta (3.5 Hz) in Sleep mode.
+          Requires headphones. Deepens the meditative state neurologically.</div>
+        </div>
+      </div>
+      <p class="ab-p" style="font-size:.7rem;opacity:.45;margin-top:.5rem">
+        Suggested session: 20 min minimum. The first 8 minutes are settling.
+      </p>
     </div>
 
     <div class="ab-footer">
