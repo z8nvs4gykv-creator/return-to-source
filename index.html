@@ -3124,9 +3124,19 @@ q('btn-continue').addEventListener('click', () => {
 // ═══════════════════════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════════════════════
+// Stop ALL meditate-screen audio: narration + ambient sounds + arc timers
+function meditateStop() {
+  vnStop();
+  stopDrone();
+  if (ST.bowlTimer) { clearInterval(ST.bowlTimer); ST.bowlTimer = null; }
+  clearInterval(ST.advTimer);
+  clearTimeout(ST.advTimer);
+  arcPause();
+}
+
 function showScreen(name) {
-  vnStop();        // stop pointer narration on any tab/screen change
-  abStop();        // stop mantra chant on any tab/screen change
+  meditateStop();  // stop all meditate audio on any screen change
+  abStop();        // stop mantra chant on any screen change
   ST.screen = name;
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => {
@@ -3719,7 +3729,7 @@ async function abTogglePlay() {
 }
 
 function abPlay() {
-  vnStop(); // cross-stop: kill meditation narration
+  meditateStop(); // cross-stop: kill ALL meditate audio (narration + ambient sounds)
   AB.isPlaying = true;
   const btn = document.getElementById('ab-playBtn');
   const ip  = document.getElementById('ab-iconPlay');
@@ -3963,6 +3973,77 @@ window.addEventListener('appinstalled', () => {
   // User can change level via the level strip on the meditate screen at any time.
   // Saved level (from previous session) is restored via ST.level = saved.level || 'all'.
   startMeditating();
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// BACKGROUND AUDIO — keep playing when iPhone screen locks
+// Strategy:
+//   1. Silent <audio> loop → tells iOS this page owns an audio session
+//   2. visibilitychange → resume any suspended AudioContext on unlock
+//   3. Wake Lock API → prevent screen dimming (best-effort, not iOS)
+//   4. MediaSession API → show lock-screen controls on iOS/Android
+// ═══════════════════════════════════════════════════════════════
+(function initBackgroundAudio() {
+  // ── 1. Silent looping <audio> to claim the iOS audio session ──
+  // A 1-second silent MP3 encoded as base64 (44 bytes decoded, ~0.1 kB)
+  const SILENT_MP3 = 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAABAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//uQZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACIABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7kGQAAANUABn9YAAAAAAA0gAAABVWABn9YAAAAAAA0gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==';
+  const silentAudio = new Audio(SILENT_MP3);
+  silentAudio.loop = true;
+  silentAudio.volume = 0.001; // inaudible but non-zero
+  // Start silent audio on first user interaction (required by browsers)
+  let silentStarted = false;
+  function startSilentAudio() {
+    if (silentStarted) return;
+    silentStarted = true;
+    silentAudio.play().catch(() => {});
+  }
+  document.addEventListener('touchstart', startSilentAudio, { once: true, passive: true });
+  document.addEventListener('click',      startSilentAudio, { once: true, passive: true });
+
+  // ── 2. Resume AudioContexts on visibility restore (screen unlock) ──
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    // Resume both audio contexts if they got suspended by iOS
+    if (ST.audio && ST.audio.state === 'suspended') {
+      ST.audio.resume().catch(() => {});
+    }
+    if (AB.audioCtx && AB.audioCtx.state === 'suspended') {
+      AB.audioCtx.resume().catch(() => {});
+    }
+  });
+
+  // ── 3. Wake Lock API — prevent screen off on Android/Chrome (best-effort) ──
+  let wakeLock = null;
+  async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+    } catch (e) {}
+  }
+  // Re-acquire on visibility restore (wake lock is released when screen locks)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') requestWakeLock();
+  });
+  document.addEventListener('touchstart', requestWakeLock, { once: true, passive: true });
+
+  // ── 4. MediaSession API — lock-screen controls (iOS 15+, Android) ──
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title:  'Aham Brahmasmi',
+      artist: 'Return to Source',
+      album:  'Mantra Meditation'
+    });
+    navigator.mediaSession.setActionHandler('play',  () => {
+      if (AB.audioCtx) AB.audioCtx.resume().catch(() => {});
+      if (!AB.isPlaying) abTogglePlay();
+    });
+    navigator.mediaSession.setActionHandler('pause', () => {
+      if (AB.isPlaying) abPause();
+    });
+    navigator.mediaSession.setActionHandler('stop',  () => {
+      if (AB.isPlaying) abPause();
+    });
+  }
 })();
 </script>
 </body>
