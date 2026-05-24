@@ -3486,6 +3486,11 @@ const AB = {
   mantraSeq:      null,
   analyser:       null,
   analyserData:   null,
+  voice:          null,   // chosen TTS voice — set once on first play
+  chantText:      'अहं ब्रह्मास्मि',
+  chantLang:      'hi-IN',
+  _dispTimer1:    null,
+  _dispTimer2:    null,
   MODES: {
     standard:   { cycle: 28, silence: 14.4, interWord: 2.8, binHz: 0,   mVol: 0.82 },
     headphones: { cycle: 34, silence: 18.0, interWord: 3.5, binHz: 4.0, mVol: 0.72 },
@@ -3590,61 +3595,45 @@ function abStrikeBowl(time, vol) {
   });
 }
 
-function abSpeakPhase(phase, startTime) {
-  if (!AB.audioCtx) return;
-  const v = AB.vols.mantra;
-  const pitch = AB.currentMode === 'sleep' ? 70 : (AB.currentMode === 'headphones' ? 82 : 90);
-  if (phase === 1) {
-    abSynthVowel(startTime,       0.5, pitch * 1.0,  [800, 1200, 2600], v * 0.85);
-    abSynthNasal(startTime + 0.5, 2.0, pitch * 0.94, v * 0.9);
+/* ── Voice selection — picks the best Sanskrit/Hindi voice available ── */
+function abPickVoice() {
+  if (!('speechSynthesis' in window)) return;
+  const voices = speechSynthesis.getVoices();
+  if (!voices.length) return;
+  // Priority: Hindi male → any Hindi → Indian English male → any Indian English → deep English male → voices[0]
+  const hiMale = voices.find(v => v.lang && v.lang.startsWith('hi') && /male/i.test(v.name));
+  const hiAny  = voices.find(v => v.lang && v.lang.startsWith('hi'));
+  const inMale = voices.find(v => v.lang === 'en-IN' && /male/i.test(v.name));
+  const inAny  = voices.find(v => v.lang === 'en-IN');
+  const enMale = voices.find(v => v.lang && v.lang.startsWith('en') && /male/i.test(v.name));
+  AB.voice = hiMale || hiAny || inMale || inAny || enMale || voices[0];
+  // Use Devanagari script if a Hindi voice was found — it pronounces it authentically
+  if (AB.voice && AB.voice.lang && AB.voice.lang.startsWith('hi')) {
+    AB.chantText = 'अहं ब्रह्मास्मि';
+    AB.chantLang = 'hi-IN';
   } else {
-    abSynthVowel(startTime,       0.6, pitch * 0.88, [600, 900, 2200],  v * 0.90);
-    abSynthVowel(startTime + 0.6, 1.8, pitch * 0.88, [700, 1100, 2400], v * 0.95);
-    abSynthVowel(startTime + 2.4, 1.4, pitch * 0.82, [400, 900, 2100],  v * 0.55);
+    AB.chantText = 'Aham Brahmasmi';
+    AB.chantLang = AB.voice ? AB.voice.lang : 'en-IN';
   }
 }
 
-function abSynthVowel(start, dur, f0, formants, vol) {
-  const osc = AB.audioCtx.createOscillator();
-  osc.type = 'sawtooth'; osc.frequency.value = f0;
-  const noise = AB.audioCtx.createOscillator();
-  noise.type = 'triangle'; noise.frequency.value = f0 * 1.003;
-  const noiseG = AB.audioCtx.createGain(); noiseG.gain.value = 0.08;
-  noise.connect(noiseG);
-  const filters = formants.map((fq, i) => {
-    const bpf = AB.audioCtx.createBiquadFilter();
-    bpf.type = 'bandpass'; bpf.frequency.value = fq; bpf.Q.value = 8 - i;
-    return bpf;
-  });
-  const merge = AB.audioCtx.createGain(); merge.gain.value = vol * 0.18;
-  osc.connect(filters[0]); filters[0].connect(filters[1]);
-  filters[1].connect(filters[2]); filters[2].connect(merge);
-  noiseG.connect(merge);
-  const env = AB.audioCtx.createGain();
-  merge.connect(env); env.connect(AB.mantraGain);
-  const atk = 0.18, rel = 0.35;
-  env.gain.setValueAtTime(0, start);
-  env.gain.linearRampToValueAtTime(1, start + atk);
-  env.gain.setValueAtTime(1, start + dur - rel);
-  env.gain.exponentialRampToValueAtTime(0.0001, start + dur);
-  osc.start(start); osc.stop(start + dur + 0.1);
-  noise.start(start); noise.stop(start + dur + 0.1);
-}
-
-function abSynthNasal(start, dur, f0, vol) {
-  const osc = AB.audioCtx.createOscillator();
-  osc.type = 'triangle'; osc.frequency.value = f0;
-  const nasal = AB.audioCtx.createBiquadFilter();
-  nasal.type = 'bandpass'; nasal.frequency.value = 280; nasal.Q.value = 12;
-  const g = AB.audioCtx.createGain(); g.gain.value = vol * 0.22;
-  osc.connect(nasal); nasal.connect(g);
-  const env = AB.audioCtx.createGain();
-  g.connect(env); env.connect(AB.mantraGain);
-  env.gain.setValueAtTime(0, start);
-  env.gain.linearRampToValueAtTime(1, start + 0.3);
-  env.gain.linearRampToValueAtTime(0.7, start + dur - 0.8);
-  env.gain.exponentialRampToValueAtTime(0.0001, start + dur);
-  osc.start(start); osc.stop(start + dur + 0.1);
+/* ── Speak the mantra via Web Speech API, call cb when done ── */
+function abSpeakMantra(cb) {
+  if (!('speechSynthesis' in window)) { if (cb) setTimeout(cb, 4000); return; }
+  if (!AB.voice) abPickVoice();
+  speechSynthesis.cancel(); // clear any queued utterances
+  // Rate: very slow for deep chanting quality; pitch low for guru-like voice
+  const rate  = AB.currentMode === 'sleep' ? 0.28 : (AB.currentMode === 'headphones' ? 0.36 : 0.45);
+  const pitch = AB.currentMode === 'sleep' ? 0.65 : 0.75;
+  const utt = new SpeechSynthesisUtterance(AB.chantText || 'अहं ब्रह्मास्मि');
+  if (AB.voice) utt.voice = AB.voice;
+  utt.lang   = AB.chantLang || 'hi-IN';
+  utt.rate   = rate;
+  utt.pitch  = pitch;
+  utt.volume = Math.max(0.1, AB.vols.mantra);
+  utt.onend   = function() { if (cb) cb(); };
+  utt.onerror = function() { if (cb) setTimeout(cb, 500); };
+  speechSynthesis.speak(utt);
 }
 
 function abStartBinaural(beatFreq) {
@@ -3672,47 +3661,63 @@ function abStopBinaural() {
 }
 
 function abRunCycle() {
+  if (!AB.isPlaying) return;
   const cfg = AB.MODES[AB.currentMode];
   const now = AB.audioCtx.currentTime;
+  // Bowl strike at cycle start (louder every 7th)
   abStrikeBowl(now, AB.cycleCount % 7 === 0 ? 1.15 : 1.0);
-  abSpeakPhase(1, now + 1.5);
-  const brahmaStart = now + 1.5 + 3.0 + cfg.interWord;
-  abSpeakPhase(2, brahmaStart);
+  // Show display animation
+  abShowChanting();
+  // Speak mantra — when done, wait silence period, then next cycle
+  setTimeout(() => {
+    if (!AB.isPlaying) return;
+    abSpeakMantra(() => {
+      if (!AB.isPlaying) return;
+      abShowSilence();
+      AB.mantraSeq = setTimeout(abRunCycle, cfg.silence * 1000);
+    });
+  }, 1200); // brief bowl-ring lead-in before voice starts
   AB.cycleCount++;
   const cd = document.getElementById('ab-cycleDisp');
   if (cd) cd.textContent = AB.cycleCount;
-  AB.mantraSeq = setTimeout(abRunCycle, cfg.cycle * 1000);
-  abUpdateDisplay(cfg);
 }
 
-function abUpdateDisplay(cfg) {
+function abShowChanting() {
   const aham   = document.getElementById('ab-wAham');
   const brahma = document.getElementById('ab-wBrahma');
   const dot    = document.getElementById('ab-dot1');
   const breath = document.getElementById('ab-breathCue');
   const orb    = document.getElementById('ab-orb');
   if (!aham) return;
-  setTimeout(() => {
-    aham.classList.add('active'); dot.classList.add('visible');
-    breath.textContent = '· exhale ·'; breath.classList.add('visible');
-    if (orb) orb.style.background = 'radial-gradient(circle,rgba(201,169,110,.12) 0%,transparent 70%)';
-  }, 1500);
-  setTimeout(() => {
+  // "Aham" glows on first
+  aham.classList.add('active'); dot.classList.add('visible');
+  brahma.classList.remove('active');
+  breath.textContent = '· aham ·'; breath.classList.add('visible');
+  if (orb) orb.style.background = 'radial-gradient(circle,rgba(201,169,110,.12) 0%,transparent 70%)';
+  // "Brahmasmi" glows after ~2.5 s
+  AB._dispTimer1 = setTimeout(() => {
     aham.classList.remove('active');
-    breath.textContent = '· still ·';
-    if (orb) orb.style.background = 'radial-gradient(circle,rgba(100,80,150,.06) 0%,transparent 70%)';
-  }, 4500);
-  const bDelay = (1.5 + 3.0 + cfg.interWord) * 1000;
-  setTimeout(() => {
-    brahma.classList.add('active');
-    breath.textContent = '· dissolve ·';
-    if (orb) orb.style.background = 'radial-gradient(circle,rgba(201,169,110,.18) 0%,transparent 65%)';
-  }, bDelay);
-  setTimeout(() => {
-    brahma.classList.remove('active'); dot.classList.remove('visible');
-    breath.classList.remove('visible'); breath.textContent = '';
-    if (orb) orb.style.background = 'radial-gradient(circle,rgba(50,40,80,.04) 0%,transparent 70%)';
-  }, bDelay + 4500);
+    if (brahma) brahma.classList.add('active');
+    breath.textContent = '· brahmasmi ·';
+    if (orb) orb.style.background = 'radial-gradient(circle,rgba(201,169,110,.2) 0%,transparent 65%)';
+  }, 2500);
+}
+
+function abShowSilence() {
+  const aham   = document.getElementById('ab-wAham');
+  const brahma = document.getElementById('ab-wBrahma');
+  const dot    = document.getElementById('ab-dot1');
+  const breath = document.getElementById('ab-breathCue');
+  const orb    = document.getElementById('ab-orb');
+  if (aham)   aham.classList.remove('active');
+  if (brahma) brahma.classList.remove('active');
+  if (dot)    dot.classList.remove('visible');
+  if (breath) { breath.textContent = '· silence ·'; }
+  if (orb) orb.style.background = 'radial-gradient(circle,rgba(50,40,80,.04) 0%,transparent 70%)';
+  // Fade out cue after 2 s
+  AB._dispTimer2 = setTimeout(() => {
+    if (breath) { breath.classList.remove('visible'); breath.textContent = ''; }
+  }, 2000);
 }
 
 function abStartVisualizer() {
@@ -3754,6 +3759,16 @@ async function abTogglePlay() {
 
 function abPlay() {
   vnStop(); // cross-stop: kill meditation narration
+  // Ensure voice is selected (async — voices may load after page init)
+  if (!AB.voice) {
+    if ('speechSynthesis' in window) {
+      if (speechSynthesis.getVoices().length) {
+        abPickVoice();
+      } else {
+        speechSynthesis.addEventListener('voiceschanged', abPickVoice, { once: true });
+      }
+    }
+  }
   AB.isPlaying = true;
   const btn = document.getElementById('ab-playBtn');
   const ip  = document.getElementById('ab-iconPlay');
@@ -3794,7 +3809,10 @@ function abPause() {
     AB.masterGain.gain.linearRampToValueAtTime(0, AB.audioCtx.currentTime + 3);
   }
   clearTimeout(AB.mantraSeq);
+  clearTimeout(AB._dispTimer1);
+  clearTimeout(AB._dispTimer2);
   clearInterval(AB.sessionTimer);
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
   const aw = document.getElementById('ab-wAham');
   const bw = document.getElementById('ab-wBrahma');
   const d1 = document.getElementById('ab-dot1');
@@ -3810,6 +3828,7 @@ function abPause() {
 function abStop() {
   if (!AB.isPlaying && !AB.mantraSeq) return;
   abPause();
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
 }
 
 function abUpdateTimer() {
