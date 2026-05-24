@@ -3486,11 +3486,20 @@ const AB = {
   mantraSeq:      null,
   analyser:       null,
   analyserData:   null,
-  voice:          null,   // chosen TTS voice — set once on first play
-  chantText:      'अहं ब्रह्मास्मि',
-  chantLang:      'hi-IN',
-  _dispTimer1:    null,
-  _dispTimer2:    null,
+  voiceBuilt:  false,   // formant synth built flag
+  voiceOsc:    null,    // main vocal oscillator (PeriodicWave)
+  vibratoOsc:  null,    // vibrato LFO
+  subOsc:      null,    // sub-harmonic layer
+  breathSrc:   null,    // breath noise source
+  breathAmp:   null,    // breath noise gain
+  vF1:         null,    // formant 1 filter
+  vF2:         null,    // formant 2 filter
+  vF3:         null,    // formant 3 filter
+  nasalF:      null,    // nasal resonance filter
+  nasalAmp:    null,    // nasal resonance gain
+  voiceAmp:    null,    // voice envelope gain
+  _dispTimer1: null,
+  _dispTimer2: null,
   MODES: {
     standard:   { cycle: 28, silence: 14.4, interWord: 2.8, binHz: 0,   mVol: 0.82 },
     headphones: { cycle: 34, silence: 18.0, interWord: 3.5, binHz: 4.0, mVol: 0.72 },
@@ -3529,6 +3538,7 @@ async function abInitAudio() {
   AB.binauralGain.gain.value = 0;
   AB.binauralGain.connect(AB.masterGain);
   abStartTanpura();
+  abBuildVoice();    // build formant synthesis engine
 }
 
 function abBuildReverb(ctx) {
@@ -3595,45 +3605,196 @@ function abStrikeBowl(time, vol) {
   });
 }
 
-/* ── Voice selection — picks the best Sanskrit/Hindi voice available ── */
-function abPickVoice() {
-  if (!('speechSynthesis' in window)) return;
-  const voices = speechSynthesis.getVoices();
-  if (!voices.length) return;
-  // Priority: Hindi male → any Hindi → Indian English male → any Indian English → deep English male → voices[0]
-  const hiMale = voices.find(v => v.lang && v.lang.startsWith('hi') && /male/i.test(v.name));
-  const hiAny  = voices.find(v => v.lang && v.lang.startsWith('hi'));
-  const inMale = voices.find(v => v.lang === 'en-IN' && /male/i.test(v.name));
-  const inAny  = voices.find(v => v.lang === 'en-IN');
-  const enMale = voices.find(v => v.lang && v.lang.startsWith('en') && /male/i.test(v.name));
-  AB.voice = hiMale || hiAny || inMale || inAny || enMale || voices[0];
-  // Use Devanagari script if a Hindi voice was found — it pronounces it authentically
-  if (AB.voice && AB.voice.lang && AB.voice.lang.startsWith('hi')) {
-    AB.chantText = 'अहं ब्रह्मास्मि';
-    AB.chantLang = 'hi-IN';
-  } else {
-    AB.chantText = 'Aham Brahmasmi';
-    AB.chantLang = AB.voice ? AB.voice.lang : 'en-IN';
-  }
+/* ══════════════════════════════════════════════════════════════════════════
+   FORMANT SYNTHESIS ENGINE — "Aham Brahmasmi" chanting
+
+   Architecture:
+     [PeriodicWave osc] ──┐
+     [Sub osc (44Hz)]    ├──[voiceMix]──[F1 BPF]──[F2 BPF]──[F3 BPF]──┐
+     [Breath noise]      ┘                                               ├──[voiceAmp]──[mantraGain]
+                              [voiceMix]──[nasalF]──[nasalAmp]──────────┘
+
+   Phonemes are scheduled as AudioParam automation curves — no new nodes
+   each cycle. Smooth, continuous, naturally human-sounding.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+// Sanskrit phoneme formant targets: [F1hz, F2hz, F3hz, nasalAmt(0–1), amplitude(0–1)]
+const ABP = {
+  silent:  [300,  800,  2500, 0.00, 0.000],
+  onset:   [580,  1180, 2480, 0.00, 0.140],  // gentle breath onset
+  open_a:  [850,  1610, 2500, 0.00, 1.000],  // "Aaah" — open अ vowel
+  mid_uh:  [420,  1010, 2580, 0.07, 0.800],  // "uh" — closing transition
+  hum_v:   [305,   860, 2590, 0.62, 0.640],  // "hum" — nasal vowel
+  nasal_m: [265,   590, 2680, 1.00, 0.360],  // "mmm" — pure nasal closure
+  bra_on:  [610,  1090, 2390, 0.00, 0.650],  // "Bra" onset
+  long_aa: [970,  1370, 2760, 0.00, 1.000],  // "aaah" — long māa vowel
+  maas_v:  [530,  1040, 2580, 0.48, 0.800],  // "maas" — nasal+vowel
+  mi_ee:   [275,  2270, 2990, 0.26, 0.560],  // "mi" — ee vowel (ि)
+};
+
+function abBuildVoice() {
+  if (AB.voiceBuilt || !AB.audioCtx) return;
+  const ctx = AB.audioCtx;
+
+  // ── Vocal source: PeriodicWave approximating chest/modal voice ──────────
+  // Harmonic amplitude profile for deep male chest voice:
+  // Strong fundamental + odd harmonics prominent, natural rolloff
+  const N = 20;
+  const real = new Float32Array(N);
+  const imag = new Float32Array(N);
+  [0, 1.0, 0.52, 0.68, 0.29, 0.38, 0.21, 0.26, 0.15, 0.18,
+     0.11, 0.14, 0.08, 0.10, 0.06, 0.08, 0.05, 0.06, 0.04, 0.05]
+    .forEach((a, i) => real[i] = a);
+  const voiceWave = ctx.createPeriodicWave(real, imag, { disableNormalization: false });
+  AB.voiceOsc = ctx.createOscillator();
+  AB.voiceOsc.setPeriodicWave(voiceWave);
+  AB.voiceOsc.frequency.value = 88; // ~F2 — deep male voice
+
+  // ── Subtle vibrato LFO (4.2 Hz, ±1.5 Hz — barely perceptible warm shimmer) ──
+  AB.vibratoOsc = ctx.createOscillator();
+  AB.vibratoOsc.frequency.value = 4.2;
+  const vibrG = ctx.createGain();
+  vibrG.gain.value = 1.5;
+  AB.vibratoOsc.connect(vibrG);
+  vibrG.connect(AB.voiceOsc.frequency);
+
+  // ── Sub-harmonic (octave below — adds chest/cave depth) ──────────────────
+  AB.subOsc = ctx.createOscillator();
+  AB.subOsc.type = 'sine';
+  AB.subOsc.frequency.value = 44;
+  const subG = ctx.createGain();
+  subG.gain.value = 0.16;
+  AB.subOsc.connect(subG);
+
+  // ── Breath noise texture ──────────────────────────────────────────────────
+  const bufLen = ctx.sampleRate * 3;
+  const nbuf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+  const nd = nbuf.getChannelData(0);
+  for (let i = 0; i < bufLen; i++) nd[i] = Math.random() * 2 - 1;
+  AB.breathSrc = ctx.createBufferSource();
+  AB.breathSrc.buffer = nbuf;
+  AB.breathSrc.loop = true;
+  const breathBPF = ctx.createBiquadFilter();
+  breathBPF.type = 'bandpass';
+  breathBPF.frequency.value = 2900;
+  breathBPF.Q.value = 0.75;
+  AB.breathAmp = ctx.createGain();
+  AB.breathAmp.gain.value = 0.009; // very subtle — just enough to humanise
+  AB.breathSrc.connect(breathBPF);
+  breathBPF.connect(AB.breathAmp);
+
+  // ── Formant filter bank (F1, F2, F3 in series) ───────────────────────────
+  AB.vF1 = ctx.createBiquadFilter();
+  AB.vF1.type = 'bandpass'; AB.vF1.frequency.value = 850;  AB.vF1.Q.value = 5.5;
+  AB.vF2 = ctx.createBiquadFilter();
+  AB.vF2.type = 'bandpass'; AB.vF2.frequency.value = 1610; AB.vF2.Q.value = 7.0;
+  AB.vF3 = ctx.createBiquadFilter();
+  AB.vF3.type = 'bandpass'; AB.vF3.frequency.value = 2500; AB.vF3.Q.value = 8.5;
+
+  // ── Nasal resonance (nasalF at 265 Hz, for म / हम) ──────────────────────
+  AB.nasalF = ctx.createBiquadFilter();
+  AB.nasalF.type = 'bandpass'; AB.nasalF.frequency.value = 265; AB.nasalF.Q.value = 17;
+  AB.nasalAmp = ctx.createGain();
+  AB.nasalAmp.gain.value = 0.0;
+
+  // ── Voice envelope gain (controls presence/silence of the voice) ─────────
+  AB.voiceAmp = ctx.createGain();
+  AB.voiceAmp.gain.value = 0.0;
+
+  // ── Signal routing ────────────────────────────────────────────────────────
+  const voiceMix = ctx.createGain();
+  voiceMix.gain.value = 0.54;
+  AB.voiceOsc.connect(voiceMix);
+  subG.connect(voiceMix);
+  // Formant chain
+  voiceMix.connect(AB.vF1);
+  AB.vF1.connect(AB.vF2);
+  AB.vF2.connect(AB.vF3);
+  AB.vF3.connect(AB.voiceAmp);
+  // Nasal path (parallel)
+  voiceMix.connect(AB.nasalF);
+  AB.nasalF.connect(AB.nasalAmp);
+  AB.nasalAmp.connect(AB.voiceAmp);
+  // Breath texture
+  AB.breathAmp.connect(AB.voiceAmp);
+  // Output to mantra gain (which feeds reverb + master)
+  AB.voiceAmp.connect(AB.mantraGain);
+
+  AB.voiceOsc.start();
+  AB.vibratoOsc.start();
+  AB.subOsc.start();
+  AB.breathSrc.start();
+  AB.voiceBuilt = true;
 }
 
-/* ── Speak the mantra via Web Speech API, call cb when done ── */
-function abSpeakMantra(cb) {
-  if (!('speechSynthesis' in window)) { if (cb) setTimeout(cb, 4000); return; }
-  if (!AB.voice) abPickVoice();
-  speechSynthesis.cancel(); // clear any queued utterances
-  // Rate: very slow for deep chanting quality; pitch low for guru-like voice
-  const rate  = AB.currentMode === 'sleep' ? 0.28 : (AB.currentMode === 'headphones' ? 0.36 : 0.45);
-  const pitch = AB.currentMode === 'sleep' ? 0.65 : 0.75;
-  const utt = new SpeechSynthesisUtterance(AB.chantText || 'अहं ब्रह्मास्मि');
-  if (AB.voice) utt.voice = AB.voice;
-  utt.lang   = AB.chantLang || 'hi-IN';
-  utt.rate   = rate;
-  utt.pitch  = pitch;
-  utt.volume = Math.max(0.1, AB.vols.mantra);
-  utt.onend   = function() { if (cb) cb(); };
-  utt.onerror = function() { if (cb) setTimeout(cb, 500); };
-  speechSynthesis.speak(utt);
+// ── Schedule full "Aham Brahmasmi" phoneme sequence via AudioParam automation ──
+// t = AudioContext time to start; scale = tempo factor (1.0=Standard, 1.1=Headphones, 1.35=Sleep)
+// Returns: total duration of the chant sound in seconds
+function abScheduleMantra(t, scale) {
+  if (!AB.voiceBuilt || !AB.voiceAmp) return 0;
+  const s = scale || 1.0;
+
+  // Anchor all params at t to their current values, clear future events
+  const params = [AB.vF1.frequency, AB.vF2.frequency, AB.vF3.frequency,
+                  AB.nasalAmp.gain, AB.voiceAmp.gain];
+  params.forEach(p => { p.cancelScheduledValues(t); p.setValueAtTime(p.value, t); });
+
+  // morph(phoneme, t0, dur): schedule smooth transition to phoneme by (t0+dur)
+  const VOL = 0.155; // master voice level
+  function morph(ph, t0, dur) {
+    const [f1, f2, f3, nas, amp] = ph;
+    AB.vF1.frequency.linearRampToValueAtTime(f1, t0 + dur);
+    AB.vF2.frequency.linearRampToValueAtTime(f2, t0 + dur);
+    AB.vF3.frequency.linearRampToValueAtTime(f3, t0 + dur);
+    AB.nasalAmp.gain.linearRampToValueAtTime(nas * 0.20, t0 + dur);
+    AB.voiceAmp.gain.linearRampToValueAtTime(amp * VOL, t0 + dur);
+  }
+
+  // ═══════════════════════════════════════════════════
+  // AHAM (अहम्)   —  "A … hummmm …"
+  // ═══════════════════════════════════════════════════
+  //  t+0.00 : silent start → gentle onset
+  morph(ABP.silent,  t,           0.01);
+  morph(ABP.onset,   t,           0.32*s);
+  //  t+0.32 : open "Aaaaahhh" vowel — 2.7 s of pure resonance
+  morph(ABP.open_a,  t+0.32*s,   0.42*s);  // quick open
+  morph(ABP.open_a,  t+0.74*s,   1.90*s);  // hold long
+  //  t+2.64 : close toward "uh" transition
+  morph(ABP.mid_uh,  t+2.64*s,   0.52*s);
+  //  t+3.16 : "hummmm" — nasal vowel deepens
+  morph(ABP.hum_v,   t+3.16*s,   0.58*s);
+  //  t+3.74 : "mmmm" — pure nasal closure
+  morph(ABP.nasal_m, t+3.74*s,   0.90*s);
+  //  t+4.64 : fade out to silence
+  morph(ABP.silent,  t+4.64*s,   0.72*s);
+
+  // ═══════════════════════════════════════════════════
+  // Sacred silence between syllables  (~1.9 s at scale=1)
+  // ═══════════════════════════════════════════════════
+  const bs = t + 7.30*s;  // Brahmasmi starts here
+  // Ensure silence just before onset
+  params.forEach(p => { p.setValueAtTime(0, bs - 0.02); });
+  AB.voiceAmp.gain.setValueAtTime(0, bs - 0.02);
+
+  // ═══════════════════════════════════════════════════
+  // BRAHMASMI (ब्रह्मास्मि)  —  "Brraaah … maaas … miii …"
+  // ═══════════════════════════════════════════════════
+  //  bs+0.00 : soft "Br" onset
+  morph(ABP.bra_on,  bs,          0.38*s);
+  //  bs+0.38 : "raaahhhh" — long open vowel (3.0 s)
+  morph(ABP.long_aa, bs+0.38*s,   0.48*s);  // open quickly
+  morph(ABP.long_aa, bs+0.86*s,   2.20*s);  // hold
+  //  bs+3.06 : "maaas" — nasal + elongated vowel (2.2 s)
+  morph(ABP.maas_v,  bs+3.06*s,   0.54*s);
+  morph(ABP.maas_v,  bs+3.60*s,   1.62*s);  // hold
+  //  bs+5.22 : "mi" — "ee" vowel (1.2 s)
+  morph(ABP.mi_ee,   bs+5.22*s,   0.54*s);
+  morph(ABP.mi_ee,   bs+5.76*s,   0.72*s);  // hold
+  //  bs+6.48 : fade out
+  morph(ABP.silent,  bs+6.48*s,   1.02*s);
+
+  // Return total chant duration in seconds
+  return (bs - t) + 7.50*s;  // ≈ 14.8 s at scale 1.0
 }
 
 function abStartBinaural(beatFreq) {
@@ -3662,48 +3823,65 @@ function abStopBinaural() {
 
 function abRunCycle() {
   if (!AB.isPlaying) return;
-  const cfg = AB.MODES[AB.currentMode];
-  const now = AB.audioCtx.currentTime;
-  // Bowl strike at cycle start (louder every 7th)
-  abStrikeBowl(now, AB.cycleCount % 7 === 0 ? 1.15 : 1.0);
-  // Show display animation
-  abShowChanting();
-  // Speak mantra — when done, wait silence period, then next cycle
-  setTimeout(() => {
-    if (!AB.isPlaying) return;
-    abSpeakMantra(() => {
-      if (!AB.isPlaying) return;
-      abShowSilence();
-      AB.mantraSeq = setTimeout(abRunCycle, cfg.silence * 1000);
-    });
-  }, 1200); // brief bowl-ring lead-in before voice starts
+  const cfg  = AB.MODES[AB.currentMode];
+  const now  = AB.audioCtx.currentTime;
+  const scale = AB.currentMode === 'sleep' ? 1.35 : (AB.currentMode === 'headphones' ? 1.10 : 1.00);
+
+  // Bowl strike — slightly louder every 7th cycle (temporal marker)
+  abStrikeBowl(now, AB.cycleCount % 7 === 0 ? 1.18 : 1.0);
+
+  // Schedule the mantra phoneme sequence via AudioParam automation
+  const chantDur = abScheduleMantra(now, scale);
+
+  // Display animation (timed to match the synthesis phoneme sequence)
+  abShowChanting(scale);
+
+  // After chant sound ends, switch to silence display
+  clearTimeout(AB._dispTimer2);
+  AB._dispTimer2 = setTimeout(abShowSilence, chantDur * 1000 + 200);
+
+  // Schedule next cycle at the full cfg.cycle interval
+  AB.mantraSeq = setTimeout(abRunCycle, cfg.cycle * 1000);
+
   AB.cycleCount++;
   const cd = document.getElementById('ab-cycleDisp');
   if (cd) cd.textContent = AB.cycleCount;
 }
 
-function abShowChanting() {
+function abShowChanting(scale) {
+  scale = scale || 1.0;
   const aham   = document.getElementById('ab-wAham');
   const brahma = document.getElementById('ab-wBrahma');
   const dot    = document.getElementById('ab-dot1');
   const breath = document.getElementById('ab-breathCue');
   const orb    = document.getElementById('ab-orb');
   if (!aham) return;
-  // "Aham" glows on first
-  aham.classList.add('active'); dot.classList.add('visible');
+
+  clearTimeout(AB._dispTimer1);
+
+  // "Aham" glows on cycle start
+  aham.classList.add('active');
+  dot.classList.add('visible');
   brahma.classList.remove('active');
-  breath.textContent = '· aham ·'; breath.classList.add('visible');
-  if (orb) orb.style.background = 'radial-gradient(circle,rgba(201,169,110,.12) 0%,transparent 70%)';
-  // "Brahmasmi" glows after ~2.5 s
+  breath.textContent = '· A · hum ·';
+  breath.classList.add('visible');
+  if (orb) orb.style.background =
+    'radial-gradient(circle,rgba(201,169,110,.13) 0%,transparent 70%)';
+
+  // "Brahmasmi" glows when Brahmasmi section starts (~7.3s × scale)
   AB._dispTimer1 = setTimeout(() => {
+    if (!AB.isPlaying) return;
     aham.classList.remove('active');
-    if (brahma) brahma.classList.add('active');
-    breath.textContent = '· brahmasmi ·';
-    if (orb) orb.style.background = 'radial-gradient(circle,rgba(201,169,110,.2) 0%,transparent 65%)';
-  }, 2500);
+    brahma.classList.add('active');
+    dot.classList.add('visible');
+    breath.textContent = '· Brah · māas · mi ·';
+    if (orb) orb.style.background =
+      'radial-gradient(circle,rgba(201,169,110,.22) 0%,transparent 62%)';
+  }, Math.round(7300 * scale));
 }
 
 function abShowSilence() {
+  clearTimeout(AB._dispTimer1);
   const aham   = document.getElementById('ab-wAham');
   const brahma = document.getElementById('ab-wBrahma');
   const dot    = document.getElementById('ab-dot1');
@@ -3712,12 +3890,12 @@ function abShowSilence() {
   if (aham)   aham.classList.remove('active');
   if (brahma) brahma.classList.remove('active');
   if (dot)    dot.classList.remove('visible');
-  if (breath) { breath.textContent = '· silence ·'; }
-  if (orb) orb.style.background = 'radial-gradient(circle,rgba(50,40,80,.04) 0%,transparent 70%)';
-  // Fade out cue after 2 s
-  AB._dispTimer2 = setTimeout(() => {
+  if (breath) breath.textContent = '· · ·';
+  if (orb) orb.style.background =
+    'radial-gradient(circle,rgba(50,40,80,.04) 0%,transparent 70%)';
+  setTimeout(() => {
     if (breath) { breath.classList.remove('visible'); breath.textContent = ''; }
-  }, 2000);
+  }, 2500);
 }
 
 function abStartVisualizer() {
@@ -3759,16 +3937,6 @@ async function abTogglePlay() {
 
 function abPlay() {
   vnStop(); // cross-stop: kill meditation narration
-  // Ensure voice is selected (async — voices may load after page init)
-  if (!AB.voice) {
-    if ('speechSynthesis' in window) {
-      if (speechSynthesis.getVoices().length) {
-        abPickVoice();
-      } else {
-        speechSynthesis.addEventListener('voiceschanged', abPickVoice, { once: true });
-      }
-    }
-  }
   AB.isPlaying = true;
   const btn = document.getElementById('ab-playBtn');
   const ip  = document.getElementById('ab-iconPlay');
@@ -3812,7 +3980,18 @@ function abPause() {
   clearTimeout(AB._dispTimer1);
   clearTimeout(AB._dispTimer2);
   clearInterval(AB.sessionTimer);
-  if ('speechSynthesis' in window) speechSynthesis.cancel();
+  // Fade out formant voice
+  if (AB.voiceAmp && AB.audioCtx) {
+    const t = AB.audioCtx.currentTime;
+    AB.voiceAmp.gain.cancelScheduledValues(t);
+    AB.voiceAmp.gain.setValueAtTime(AB.voiceAmp.gain.value, t);
+    AB.voiceAmp.gain.linearRampToValueAtTime(0, t + 1.2);
+  }
+  if (AB.nasalAmp && AB.audioCtx) {
+    const t = AB.audioCtx.currentTime;
+    AB.nasalAmp.gain.cancelScheduledValues(t);
+    AB.nasalAmp.gain.setValueAtTime(0, t + 1.2);
+  }
   const aw = document.getElementById('ab-wAham');
   const bw = document.getElementById('ab-wBrahma');
   const d1 = document.getElementById('ab-dot1');
@@ -3857,6 +4036,12 @@ function abSetMode(mode) {
     abUpdateVol('binaural', 0);
     const sl = document.getElementById('ab-slBinaural');
     if (sl) sl.value = 0;
+  }
+  // Adjust voice fundamental pitch per mode (deeper = more meditative)
+  if (AB.voiceOsc && AB.audioCtx) {
+    const pitchMap = { standard: 88, headphones: 83, sleep: 76 };
+    AB.voiceOsc.frequency.setTargetAtTime(pitchMap[mode] || 88, AB.audioCtx.currentTime, 0.8);
+    if (AB.subOsc) AB.subOsc.frequency.setTargetAtTime((pitchMap[mode] || 88) / 2, AB.audioCtx.currentTime, 0.8);
   }
   if (AB.isPlaying) {
     clearTimeout(AB.mantraSeq);
