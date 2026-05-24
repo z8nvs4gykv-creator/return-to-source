@@ -1,0 +1,3964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Return to Source">
+<meta name="theme-color" content="#030c18">
+<meta name="description" content="A self-inquiry meditation app rooted in the direct teachings of Sri Ramana Maharshi and Sri Nisargadatta Maharaj.">
+<meta property="og:title" content="Return to Source — Self-Inquiry">
+<meta property="og:description" content="Silent inward-pointing practice. Guided self-inquiry for the direct path.">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Return to Source — Self-Inquiry</title>
+<style>
+/* ── Design tokens ── */
+:root {
+  --bg:#030c18; --surface:#071828; --card:#0b2235;
+  --border:rgba(77,184,212,0.13); --accent:#4db8d4; --accent2:#2a8aaa;
+  --glow:rgba(77,184,212,0.18); --txt:#d8eff7; --txt2:#7aadbe; --txt3:#3d6f84;
+  --quote:#eaf5fb; --gold:#d4a96a; --warm:rgba(212,169,106,0.22);
+  --serif:Georgia,'Times New Roman',serif;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --nav:68px; --safe:env(safe-area-inset-bottom,0px);
+  --circ:477.52; --radius:14px;
+  --ease-calm:cubic-bezier(0.4,0,0.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{height:100%;-webkit-tap-highlight-color:transparent;scroll-behavior:smooth}
+body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--sans);overflow:hidden;
+  user-select:none;-webkit-user-select:none;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+button{border:none;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+a{color:var(--accent);text-decoration:none}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:rgba(77,184,212,0.2);border-radius:2px}
+
+/* ── Layout ── */
+#bg-canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+#app{position:relative;z-index:1;height:100%;display:flex;flex-direction:column}
+.screen{display:none;flex:1;flex-direction:column;overflow:hidden;
+  padding-bottom:calc(var(--nav) + var(--safe))}
+.screen.active{display:flex}
+
+/* ── Meditate header ── */
+.med-header{display:flex;justify-content:space-between;align-items:center;
+  padding:1.1rem 1.4rem 0.4rem;z-index:2;flex-shrink:0}
+.hdr-left{display:flex;align-items:center;gap:.5rem}
+.hdr-group{font-size:.64rem;letter-spacing:.2em;text-transform:uppercase;color:var(--txt3)}
+.addr-badge{display:none;background:rgba(212,169,106,.12);border:.5px solid rgba(212,169,106,.38);
+  border-radius:10px;padding:.2rem .6rem;font-size:.56rem;color:var(--gold);
+  letter-spacing:.14em;text-transform:uppercase}
+.addr-badge.on{display:inline-block}
+.hdr-right{display:flex;align-items:center;gap:.55rem}
+.btn-mood,.btn-breath{background:rgba(77,184,212,.09);border:.5px solid rgba(77,184,212,.22);
+  border-radius:22px;padding:.32rem .72rem;font-size:.62rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--txt2);transition:all .22s var(--ease-calm)}
+.btn-mood:hover,.btn-mood.on,.btn-breath:hover,.btn-breath.on{
+  background:rgba(77,184,212,.2);border-color:rgba(77,184,212,.48);color:var(--accent)}
+.hdr-clock{font-size:.74rem;font-variant-numeric:tabular-nums;color:var(--txt3);
+  letter-spacing:.1em;opacity:0;transition:opacity .4s}
+.hdr-clock.on{opacity:1}
+
+/* ── Orb ── */
+.med-body{flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:0.5rem 2rem 0;overflow:hidden}
+.orb-wrap{position:relative;width:168px;height:168px;display:flex;
+  align-items:center;justify-content:center;flex-shrink:0}
+.ring{position:absolute;border-radius:50%;border:1px solid rgba(77,184,212,.07);
+  animation:ring-pulse 7s ease-in-out infinite}
+.ring.r1{width:168px;height:168px}
+.ring.r2{width:124px;height:124px;animation-delay:1.6s}
+.ring.r3{width:80px;height:80px;animation-delay:3.2s}
+@keyframes ring-pulse{0%,100%{opacity:.18;transform:scale(1)}50%{opacity:.55;transform:scale(1.04)}}
+.orb-core{width:40px;height:40px;border-radius:50%;
+  background:radial-gradient(circle at 38% 35%,rgba(140,230,250,.85),rgba(40,140,180,.45));
+  animation:orb-breathe 7s ease-in-out infinite;
+  box-shadow:0 0 24px rgba(77,184,212,.38),0 0 64px rgba(77,184,212,.12)}
+@keyframes orb-breathe{
+  0%,100%{transform:scale(1);box-shadow:0 0 24px rgba(77,184,212,.38),0 0 64px rgba(77,184,212,.12)}
+  50%{transform:scale(1.24);box-shadow:0 0 38px rgba(77,184,212,.58),0 0 96px rgba(77,184,212,.2)}}
+.arc-svg{position:absolute;top:0;left:0;width:168px;height:168px;
+  transform:rotate(-90deg);overflow:visible}
+.arc-track{fill:none;stroke:rgba(77,184,212,.06);stroke-width:1.5}
+#arc-fill{fill:none;stroke:rgba(77,184,212,.52);stroke-width:1.5;stroke-linecap:round;
+  stroke-dasharray:var(--circ);stroke-dashoffset:var(--circ)}
+#arc-fill.running{animation:arc-go var(--dur,10s) linear forwards}
+#arc-fill.warm{stroke:rgba(212,169,106,.58)}
+@keyframes arc-go{from{stroke-dashoffset:var(--circ)}to{stroke-dashoffset:0}}
+
+/* ── Pointer text ── */
+.ptr-wrap{text-align:center;max-width:560px;width:100%;margin-top:1.2rem;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4rem;
+  padding:0 .5rem;max-height:42vh;overflow:hidden}
+.ptr-grp{font-size:.64rem;letter-spacing:.2em;text-transform:uppercase;color:var(--txt3);
+  opacity:0;transition:opacity 1.6s ease}
+.ptr-grp.on{opacity:1}
+.ptr-text{font-family:var(--serif);font-size:clamp(1rem,3.4vw,1.6rem);font-style:italic;
+  font-weight:300;color:var(--quote);line-height:1.45;opacity:0;
+  transition:opacity 1.8s ease;overflow:hidden}
+.ptr-text.on{opacity:1}
+.ptr-count{font-size:.62rem;color:var(--txt3);letter-spacing:.12em;opacity:0;
+  transition:opacity 1.6s ease;margin-top:.1rem}
+.ptr-count.on{opacity:1}
+
+/* ── Dots / Controls ── */
+.dots-wrap{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;
+  max-width:300px;margin:.9rem auto .5rem;transition:opacity .5s;flex-shrink:0}
+.dot{width:5px;height:5px;border-radius:50%;background:rgba(77,184,212,.15);
+  cursor:pointer;transition:background .3s,transform .2s}
+.dot.active{background:rgba(77,184,212,.75)}
+.dot.grp{background:rgba(77,184,212,.32)}
+.dot:hover{transform:scale(1.6)}
+.controls{display:flex;align-items:center;justify-content:center;gap:1rem;
+  padding:.35rem 1rem .75rem;transition:opacity .5s;flex-shrink:0}
+.cbtn{background:rgba(255,255,255,.04);border:.5px solid rgba(77,184,212,.24);
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:rgba(160,220,235,.75);transition:all .22s ease;
+  flex-shrink:0;touch-action:manipulation}
+.cbtn:hover,.cbtn:active{background:rgba(77,184,212,.18);color:rgba(230,250,255,1);
+  border-color:rgba(77,184,212,.5)}
+.cbtn.on{background:rgba(77,184,212,.2);color:rgba(200,245,255,1);
+  border-color:rgba(77,184,212,.55)}
+.cbtn.sm{width:44px;height:44px;font-size:1.05rem}
+.cbtn.lg{width:62px;height:62px;font-size:1.4rem}
+.sound-lbl{font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--txt3);text-align:center;padding-bottom:.1rem;
+  transition:opacity .4s;flex-shrink:0}
+
+/* ── Level strip (meditate screen) — 2-row layout ── */
+.lvl-strip{display:flex;gap:.4rem .38rem;flex-wrap:wrap;padding:.1rem 1rem .35rem;
+  flex-shrink:0;justify-content:center;align-items:center}
+.lvl-strip-break{width:100%;flex-basis:100%;height:0;display:block}
+.lvl-pill{flex-shrink:0;display:flex;align-items:center;gap:.28rem;
+  background:rgba(255,255,255,.03);border:.5px solid rgba(77,184,212,.16);
+  border-radius:20px;padding:.22rem .65rem;font-size:.54rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--txt3);cursor:pointer;
+  transition:all .22s var(--ease-calm);user-select:none}
+.lvl-pill .lp-icon{font-size:.72rem;line-height:1}
+.lvl-pill.on{background:rgba(77,184,212,.14);border-color:rgba(77,184,212,.52);color:var(--accent)}
+.lvl-pill:active{transform:scale(.96)}
+
+/* ── Voice mini chips (meditate screen) ── */
+.voice-mini-row{display:flex;gap:.38rem;justify-content:center;align-items:center;
+  padding:.18rem 0 .28rem;flex-shrink:0;transition:opacity .4s}
+.vmini{background:none;border:.5px solid rgba(77,184,212,.18);border-radius:12px;
+  padding:.18rem .52rem;font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--txt3);transition:all .2s var(--ease-calm)}
+.vmini.on{background:rgba(77,184,212,.12);border-color:rgba(77,184,212,.55);color:var(--accent)}
+.vmini:hover{border-color:rgba(77,184,212,.38);color:var(--txt2)}
+
+/* ── Speak now button (home screen voice test) ── */
+.speak-now-row{display:flex;justify-content:center;padding:.1rem 0 .45rem;flex-shrink:0}
+#btn-speak-now{background:none;border:.5px solid rgba(212,169,106,.32);border-radius:14px;
+  padding:.22rem .82rem;font-size:.52rem;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--gold);opacity:0;pointer-events:none;transition:opacity .3s,border-color .2s,color .2s}
+#btn-speak-now.visible{opacity:1;pointer-events:auto}
+#btn-speak-now:hover{border-color:rgba(212,169,106,.65);color:#e8c47a}
+#btn-speak-now:active{transform:scale(.95)}
+
+/* ── Journey ── */
+.scr-inner{flex:1;overflow-y:auto;padding:1.4rem 1.1rem 1rem;-webkit-overflow-scrolling:touch}
+.scr-title{font-size:.62rem;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--txt3);margin-bottom:1.5rem;text-align:center}
+.favs-band{margin-bottom:1.4rem}
+.favs-lbl{font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--txt3);margin-bottom:.7rem;display:flex;align-items:center;gap:.6rem}
+.favs-lbl::after{content:'';flex:1;height:.5px;background:var(--border)}
+.fav-chips{display:flex;flex-wrap:wrap;gap:.4rem}
+.fav-chip{padding:.38rem .78rem;background:rgba(77,184,212,.05);
+  border:.5px solid rgba(77,184,212,.18);border-radius:20px;
+  font-family:var(--serif);font-size:.84rem;font-style:italic;
+  color:var(--txt2);cursor:pointer;transition:background .2s}
+.fav-chip:hover{background:rgba(77,184,212,.14)}
+.lvl-section-hdr{font-size:.56rem;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--txt3);padding:.6rem 0 .4rem;margin-bottom:.4rem;
+  border-bottom:.5px solid var(--border);opacity:.6}
+.g-card{margin-bottom:.75rem;border:.5px solid var(--border);border-radius:var(--radius);
+  overflow:hidden;transition:border-color .3s}
+.g-card.open{border-color:rgba(77,184,212,.3)}
+.g-card-hdr{display:flex;justify-content:space-between;align-items:center;
+  padding:.88rem 1rem;cursor:pointer;background:rgba(77,184,212,.025);
+  transition:background .2s}
+.g-card-hdr:hover{background:rgba(77,184,212,.07)}
+.g-num{font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--txt3);margin-bottom:.2rem}
+.g-name{font-size:.88rem;color:var(--accent);letter-spacing:.04em;font-weight:500}
+.g-meta{font-size:.64rem;color:var(--txt3);letter-spacing:.08em;margin-top:.15rem}
+.g-chev{font-size:.72rem;color:var(--txt3);transition:transform .3s;
+  flex-shrink:0;margin-left:.8rem}
+.g-card.open .g-chev{transform:rotate(180deg)}
+.g-card-body{display:none;padding:.2rem 0}
+.g-card.open .g-card-body{display:block}
+.p-item{display:flex;align-items:center;padding:.68rem 1rem;cursor:pointer;
+  border-top:.5px solid rgba(77,184,212,.06);transition:background .2s;gap:.6rem}
+.p-item:hover{background:rgba(77,184,212,.06)}
+.p-item-num{font-size:.6rem;color:var(--txt3);width:20px;flex-shrink:0}
+.p-item-txt{font-family:var(--serif);font-size:.92rem;font-style:italic;
+  color:var(--txt2);flex:1;line-height:1.5}
+.p-fav{font-size:.95rem;color:var(--txt3);flex-shrink:0;
+  padding:.2rem .2rem .2rem .5rem;transition:color .2s,transform .15s}
+.p-fav:hover{transform:scale(1.28)}
+.p-fav.on{color:var(--gold)}
+
+/* ── Journal ── */
+.jrn-compose{margin-bottom:1.4rem}
+.jrn-textarea{width:100%;min-height:120px;background:rgba(77,184,212,.04);
+  border:.5px solid rgba(77,184,212,.2);border-radius:10px;
+  padding:.9rem 1rem;color:var(--txt);font-family:var(--serif);
+  font-size:.97rem;font-style:italic;line-height:1.7;resize:vertical;
+  outline:none;user-select:text;-webkit-user-select:text}
+.jrn-textarea::placeholder{color:var(--txt3)}
+.jrn-textarea:focus{border-color:rgba(77,184,212,.42);
+  box-shadow:0 0 0 3px rgba(77,184,212,.07)}
+.jrn-save-btn{margin-top:.65rem;padding:.62rem 1.5rem;
+  background:rgba(77,184,212,.1);border:.5px solid rgba(77,184,212,.32);
+  border-radius:22px;color:var(--accent);font-size:.8rem;
+  letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:all .2s}
+.jrn-save-btn:hover{background:rgba(77,184,212,.2)}
+.jrn-entry{padding:.9rem 1rem;margin-bottom:.7rem;background:rgba(77,184,212,.03);
+  border:.5px solid var(--border);border-radius:10px;position:relative}
+.jrn-entry-date{font-size:.6rem;color:var(--txt3);letter-spacing:.1em;
+  text-transform:uppercase;margin-bottom:.35rem}
+.jrn-entry-ptr{font-size:.76rem;color:var(--accent2);font-family:var(--serif);
+  font-style:italic;margin-bottom:.45rem;opacity:.8}
+.jrn-entry-body{font-family:var(--serif);font-size:.93rem;font-style:italic;
+  color:var(--txt2);line-height:1.7}
+.jrn-del{position:absolute;top:.65rem;right:.65rem;background:transparent;
+  border:none;color:var(--txt3);font-size:.88rem;cursor:pointer;
+  padding:.2rem .45rem;transition:color .2s}
+.jrn-del:hover{color:var(--accent)}
+.jrn-empty{text-align:center;padding:2.5rem 1rem;color:var(--txt3);
+  font-family:var(--serif);font-style:italic;font-size:.92rem;line-height:1.8}
+
+/* ── Guide ── */
+.guide-block{margin-bottom:1.7rem;padding-left:1rem;
+  border-left:1px solid rgba(77,184,212,.22)}
+.guide-ttl{font-size:.64rem;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--accent2);margin-bottom:.45rem}
+.guide-body{font-family:var(--serif);font-size:.98rem;font-style:italic;
+  font-weight:300;color:rgba(180,220,235,.78);line-height:1.9}
+.guide-sub{color:rgba(120,175,200,.58);font-size:.9rem;display:block;
+  margin-top:.5rem}
+.tribute-block{margin-bottom:2rem;padding:1.4rem 1.5rem 1.5rem;
+  background:rgba(212,169,106,.06);border:.5px solid rgba(212,169,106,.26);
+  border-radius:var(--radius);text-align:center}
+.tribute-label{font-size:.58rem;letter-spacing:.26em;text-transform:uppercase;
+  color:var(--gold);margin-bottom:.88rem;opacity:.8}
+.tribute-body{font-family:var(--serif);font-size:.93rem;font-style:italic;
+  color:rgba(212,195,155,.84);line-height:1.9}
+.tribute-name{font-weight:700;font-style:normal;color:var(--gold);
+  background:rgba(212,169,106,.14);border-radius:5px;
+  padding:.05rem .35rem;letter-spacing:.03em}
+.tribute-divider{width:38px;height:1px;background:rgba(212,169,106,.28);
+  margin:1.2rem auto;border:none}
+.tribute-personal{font-family:var(--serif);font-size:.88rem;font-style:italic;
+  color:rgba(212,195,155,.78);line-height:1.85;text-align:left;
+  border-left:2px solid rgba(212,169,106,.3);padding-left:.95rem;margin-top:1.1rem}
+.tribute-personal + .tribute-personal{margin-top:.9rem}
+.tribute-person{font-weight:700;font-style:normal;color:var(--gold);letter-spacing:.02em}
+.tribute-note{font-family:var(--serif);font-size:.8rem;font-style:italic;
+  color:rgba(212,195,155,.5);line-height:1.8;margin-top:1.2rem;
+  padding-top:1rem;border-top:.5px solid rgba(212,169,106,.15);text-align:left}
+
+/* ── Settings ── */
+.set-grp{margin-bottom:1.8rem}
+.set-grp-ttl{font-size:.6rem;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--txt3);margin-bottom:.78rem;padding-bottom:.45rem;
+  border-bottom:.5px solid var(--border)}
+.chip-row{display:flex;flex-wrap:wrap;gap:.45rem}
+.chip{padding:.44rem .98rem;border-radius:22px;border:.5px solid rgba(77,184,212,.2);
+  background:rgba(77,184,212,.03);font-size:.82rem;color:var(--txt2);
+  cursor:pointer;transition:all .2s}
+.chip.on{background:rgba(77,184,212,.2);border-color:rgba(77,184,212,.5);
+  color:var(--txt)}
+.chip:hover:not(.on){background:rgba(77,184,212,.09)}
+.set-hint{font-size:.74rem;color:var(--txt3);font-family:var(--serif);
+  font-style:italic;margin-top:.6rem;line-height:1.6}
+.stats-bar{display:flex;gap:1.5rem;background:rgba(77,184,212,.04);
+  border:.5px solid var(--border);border-radius:var(--radius);
+  padding:1rem 1.2rem;margin-bottom:1.6rem}
+.stat-item{display:flex;flex-direction:column;gap:.25rem}
+.stat-val{font-size:1.45rem;color:var(--accent);font-weight:300}
+.stat-lbl{font-size:.58rem;color:var(--txt3);letter-spacing:.12em;text-transform:uppercase}
+.install-btn{display:none;width:100%;padding:.76rem;
+  background:rgba(77,184,212,.09);border:.5px solid rgba(77,184,212,.3);
+  border-radius:10px;color:var(--accent);font-size:.84rem;
+  letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .2s}
+.install-btn.visible{display:block}
+.install-btn:hover{background:rgba(77,184,212,.2)}
+
+/* ── Progress tracking ── */
+.prog-section{width:100%;max-width:360px;margin:0 auto}
+.prog-row{display:flex;align-items:center;justify-content:space-between;
+  padding:.5rem 0;border-top:.5px solid rgba(77,184,212,.1)}
+.prog-row:first-child{border-top:none}
+.prog-lbl{font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--txt3);width:110px;flex-shrink:0}
+.prog-stars{display:flex;gap:.35rem}
+.prog-star{font-size:1.15rem;cursor:pointer;color:rgba(77,184,212,.22);
+  transition:color .15s,transform .1s;touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent}
+.prog-star.on{color:var(--gold)}
+.prog-star:hover{transform:scale(1.28)}
+.prog-save-note{font-size:.6rem;color:var(--txt3);letter-spacing:.1em;
+  text-align:center;margin-top:.7rem;opacity:.7}
+.prog-chart-row{display:flex;align-items:center;gap:.7rem;margin-bottom:.5rem}
+.prog-chart-lbl{font-size:.62rem;color:var(--txt3);width:90px;flex-shrink:0}
+.prog-bar-track{flex:1;height:5px;background:rgba(77,184,212,.1);
+  border-radius:3px;overflow:hidden}
+.prog-bar-fill{height:100%;
+  background:linear-gradient(90deg,var(--accent2),var(--accent));
+  border-radius:3px;transition:width .6s var(--ease-calm)}
+.prog-bar-val{font-size:.72rem;color:var(--accent);
+  width:26px;text-align:right;flex-shrink:0}
+.prog-entries{display:flex;gap:3px;margin-top:.6rem;align-items:flex-end;height:24px}
+.prog-dot{width:6px;border-radius:2px 2px 0 0;
+  background:rgba(77,184,212,.35);flex:1;min-width:0;
+  transition:height .4s var(--ease-calm)}
+
+/* ── Voice narration ── */
+.voice-dot{width:7px;height:7px;border-radius:50%;
+  background:var(--accent);opacity:0;flex-shrink:0;margin-top:.15rem;
+  transition:opacity .4s}
+.voice-dot.on{opacity:1;animation:voice-pulse 1.4s ease-in-out infinite}
+@keyframes voice-pulse{0%,100%{transform:scale(1);opacity:.55}50%{transform:scale(1.7);opacity:1}}
+.voice-select-wrap{position:relative;margin-top:.55rem}
+.voice-select{width:100%;padding:.48rem .9rem;
+  background:rgba(77,184,212,.04);border:.5px solid rgba(77,184,212,.2);
+  border-radius:10px;color:var(--txt2);font-family:var(--sans);
+  font-size:.82rem;appearance:none;-webkit-appearance:none;
+  outline:none;cursor:pointer;transition:border-color .2s}
+.voice-select:focus{border-color:rgba(77,184,212,.44)}
+.voice-select option{background:#071828;color:var(--txt)}
+.voice-select-arrow{position:absolute;right:.8rem;top:50%;
+  transform:translateY(-50%);color:var(--txt3);font-size:.65rem;
+  pointer-events:none}
+.voice-test-btn{margin-top:.55rem;padding:.5rem 1.3rem;
+  background:rgba(77,184,212,.07);border:.5px solid rgba(77,184,212,.22);
+  border-radius:20px;color:var(--txt2);font-size:.76rem;
+  letter-spacing:.1em;text-transform:uppercase;cursor:pointer;
+  transition:all .2s;display:flex;align-items:center;gap:.4rem}
+.voice-test-btn:hover{background:rgba(77,184,212,.16);color:var(--accent)}
+.voice-test-btn .vt-dot{width:5px;height:5px;border-radius:50%;
+  background:var(--accent);opacity:0;transition:opacity .3s}
+.voice-test-btn.testing .vt-dot{opacity:1;animation:voice-pulse 1s ease-in-out infinite}
+.voice-compat-note{font-size:.68rem;color:var(--txt3);font-family:var(--serif);
+  font-style:italic;margin-top:.6rem;line-height:1.6;
+  padding:.55rem .8rem;background:rgba(77,184,212,.03);
+  border-left:2px solid rgba(77,184,212,.2);border-radius:0 6px 6px 0}
+.voice-compat-note.warn{border-left-color:rgba(212,169,106,.4);
+  color:rgba(212,195,155,.7)}
+
+/* ── Level cards ── */
+.level-row{display:flex;flex-direction:column;gap:.5rem}
+.lvl-card{display:flex;align-items:center;gap:.9rem;padding:.85rem 1rem;
+  background:rgba(77,184,212,.03);border:.5px solid rgba(77,184,212,.15);
+  border-radius:var(--radius);cursor:pointer;transition:all .2s;text-align:left}
+.lvl-card:hover{background:rgba(77,184,212,.1)}
+.lvl-card.on{background:rgba(77,184,212,.15);border-color:rgba(77,184,212,.45)}
+.lvl-icon{font-size:1.45rem;flex-shrink:0}
+.lvl-name{font-size:.87rem;color:var(--accent);font-weight:500;letter-spacing:.04em}
+.lvl-desc{font-size:.7rem;color:var(--txt3);line-height:1.5;
+  margin-top:.18rem;font-family:var(--serif);font-style:italic}
+
+/* ── Nav ── */
+#nav{position:fixed;bottom:0;left:0;right:0;
+  height:calc(var(--nav) + var(--safe));padding-bottom:var(--safe);
+  display:flex;align-items:stretch;
+  background:rgba(3,10,20,.94);backdrop-filter:blur(24px) saturate(1.7);
+  border-top:.5px solid rgba(77,184,212,.12);z-index:100}
+.nav-tab{flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:4px;background:transparent;
+  color:var(--txt3);font-size:.6rem;letter-spacing:.08em;
+  text-transform:uppercase;transition:color .22s;position:relative;
+  padding:.5rem 0}
+.nav-tab .ni{font-size:1.3rem;transition:transform .22s,color .22s}
+.nav-tab.on{color:var(--accent)}
+.nav-tab.on .ni{transform:scale(1.15);color:var(--accent)}
+.nav-tab::after{content:'';position:absolute;top:0;left:20%;right:20%;
+  height:2px;border-radius:0 0 2px 2px;
+  background:var(--accent);transform:scaleX(0);
+  transition:transform .22s var(--ease-calm);transform-origin:center}
+.nav-tab.on::after{transform:scaleX(1)}
+
+/* ── Complete overlay ── */
+#complete{display:none;position:fixed;inset:0;z-index:200;
+  background:rgba(3,10,20,.97);flex-direction:column;align-items:center;
+  justify-content:center;gap:.9rem;text-align:center;padding:2rem;
+  overflow-y:auto}
+#complete.on{display:flex}
+.cmp-orb{width:58px;height:58px;border-radius:50%;
+  background:radial-gradient(circle at 38% 35%,rgba(140,230,250,.7),rgba(40,140,180,.3));
+  box-shadow:0 0 42px rgba(77,184,212,.42),0 0 110px rgba(77,184,212,.15);
+  animation:orb-breathe 4s ease-in-out infinite;margin-bottom:.35rem}
+.cmp-title{font-family:var(--serif);font-size:1.78rem;font-style:italic;color:var(--txt)}
+.cmp-sub{font-size:.7rem;color:var(--txt3);letter-spacing:.14em;
+  text-transform:uppercase;max-width:280px;line-height:1.8;white-space:pre-line}
+.cmp-stats{display:flex;gap:2.5rem}
+.cmp-stat{display:flex;flex-direction:column;align-items:center;gap:.25rem}
+.cmp-num{font-size:1.95rem;color:var(--accent);font-weight:300}
+.cmp-lbl{font-size:.58rem;color:var(--txt3);letter-spacing:.14em;text-transform:uppercase}
+.cmp-divider{width:100%;max-width:320px;height:.5px;
+  background:rgba(77,184,212,.12);margin:.3rem 0}
+.cmp-prog-ttl{font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--txt3);margin-bottom:.3rem}
+.cmp-btn{padding:.76rem 2.2rem;border:.5px solid rgba(77,184,212,.32);
+  border-radius:30px;background:rgba(77,184,212,.1);color:var(--accent);
+  font-size:.84rem;cursor:pointer;letter-spacing:.1em;
+  text-transform:uppercase;transition:all .2s;margin-top:.4rem}
+.cmp-btn:hover{background:rgba(77,184,212,.24)}
+
+/* ── Breath overlay ── */
+#breath-overlay{display:none;position:fixed;inset:0;z-index:150;
+  background:rgba(3,10,20,.97);flex-direction:column;align-items:center;
+  justify-content:center;gap:1.6rem}
+#breath-overlay.on{display:flex}
+.breath-ring-wrap{position:relative;width:220px;height:220px;
+  display:flex;align-items:center;justify-content:center}
+.breath-ring{position:absolute;inset:0;border-radius:50%;
+  border:1.5px solid rgba(77,184,212,.16);transition:transform .1s linear}
+.breath-inner{width:100px;height:100px;border-radius:50%;
+  background:radial-gradient(circle at 38% 35%,rgba(100,200,240,.6),rgba(20,100,160,.3));
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:.2rem;
+  transition:transform .1s linear,box-shadow .1s linear;
+  box-shadow:0 0 30px rgba(77,184,212,.2);z-index:1}
+.breath-phase-lbl{font-size:.64rem;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--accent)}
+.breath-count-lbl{font-size:2.9rem;font-weight:200;color:var(--txt);line-height:1}
+.breath-pattern-lbl{font-size:.6rem;color:var(--txt3);
+  letter-spacing:.2em;text-transform:uppercase}
+.breath-cycles-lbl{font-size:.66rem;color:var(--txt3);letter-spacing:.12em}
+.breath-close-btn{position:absolute;top:1.5rem;right:1.5rem;
+  background:transparent;border:none;color:var(--txt3);
+  font-size:1.35rem;cursor:pointer;padding:.4rem .6rem;transition:color .2s}
+.breath-close-btn:hover{color:var(--txt)}
+
+/* ── Onboarding ── */
+#onboard{display:none;position:fixed;inset:0;z-index:400;
+  background:rgba(3,10,20,.99);flex-direction:column;align-items:center;
+  justify-content:center;padding:2rem;gap:1.2rem}
+#onboard.on{display:flex}
+.ob-title{font-family:var(--serif);font-style:italic;font-size:1.58rem;
+  color:var(--txt);text-align:center}
+.ob-sub{font-size:.7rem;color:var(--txt3);text-align:center;
+  letter-spacing:.1em;line-height:1.8;max-width:290px}
+.ob-cards{display:flex;flex-direction:column;gap:.65rem;
+  width:100%;max-width:340px}
+.ob-card{display:flex;align-items:center;gap:.9rem;padding:.98rem 1.15rem;
+  background:rgba(77,184,212,.04);border:.5px solid rgba(77,184,212,.18);
+  border-radius:var(--radius);cursor:pointer;transition:all .22s;text-align:left}
+.ob-card:hover{background:rgba(77,184,212,.13);border-color:rgba(77,184,212,.42)}
+.ob-icon{font-size:1.55rem;flex-shrink:0}
+.ob-name{font-size:.92rem;color:var(--accent);font-weight:500;letter-spacing:.05em}
+.ob-desc{font-size:.7rem;color:var(--txt3);margin-top:.2rem;
+  line-height:1.5;font-family:var(--serif);font-style:italic}
+
+/* ── Mood panel ── */
+#mood-panel{display:none;position:fixed;inset:0;z-index:300;
+  background:rgba(3,10,20,.97);flex-direction:column;align-items:center;
+  justify-content:center;padding:2rem;gap:.9rem}
+#mood-panel.on{display:flex}
+.mood-q{font-family:var(--serif);font-style:italic;font-size:1.38rem;
+  color:var(--txt);text-align:center}
+.mood-hint{font-size:.66rem;color:var(--txt3);
+  letter-spacing:.1em;text-align:center;margin-bottom:.2rem}
+.mood-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;
+  width:100%;max-width:320px}
+.mood-tile{padding:.78rem .4rem;background:rgba(77,184,212,.04);
+  border:.5px solid rgba(77,184,212,.15);border-radius:var(--radius);
+  cursor:pointer;transition:all .22s;display:flex;
+  flex-direction:column;align-items:center;gap:.32rem}
+.mood-tile:hover{background:rgba(77,184,212,.13);
+  border-color:rgba(77,184,212,.38)}
+.mood-tile-icon{font-size:1.45rem}
+.mood-tile-lbl{font-size:.58rem;color:var(--txt3);
+  letter-spacing:.1em;text-transform:uppercase}
+.mood-skip{font-size:.68rem;color:var(--txt3);letter-spacing:.1em;
+  background:transparent;border:none;cursor:pointer;
+  text-decoration:underline;text-underline-offset:3px;
+  transition:color .2s;padding:.4rem;margin-top:.3rem}
+.mood-skip:hover{color:var(--txt2)}
+
+/* ── Beginner task card ── */
+#task-card{display:none;position:fixed;inset:0;z-index:160;
+  background:rgba(3,10,20,.97);flex-direction:column;align-items:center;
+  justify-content:center;padding:2.5rem 2rem;gap:1.1rem;text-align:center}
+#task-card.on{display:flex}
+.task-badge{font-size:.6rem;color:var(--txt3);letter-spacing:.2em;text-transform:uppercase}
+.task-text{font-family:var(--serif);font-size:1.18rem;font-style:italic;
+  color:var(--txt);line-height:1.78;max-width:320px}
+.task-next-btn{margin-top:.5rem;padding:.68rem 1.9rem;
+  background:rgba(77,184,212,.09);border:.5px solid rgba(77,184,212,.28);
+  border-radius:22px;color:var(--accent);font-size:.8rem;
+  letter-spacing:.12em;text-transform:uppercase;
+  cursor:pointer;transition:all .2s}
+.task-next-btn:hover{background:rgba(77,184,212,.2)}
+.task-skip{font-size:.62rem;color:var(--txt3);background:transparent;
+  border:none;cursor:pointer;text-decoration:underline;
+  text-underline-offset:3px;margin-top:.2rem;transition:color .2s}
+.task-skip:hover{color:var(--txt2)}
+
+/* ── Responsive ── */
+@media(min-width:600px){
+  .med-body{max-width:600px;margin:0 auto;width:100%}
+  .ptr-text{font-size:clamp(1.1rem,3.2vw,1.6rem)}
+}
+@media(max-width:480px){
+  .orb-wrap{width:136px;height:136px}
+  .ring.r1{width:136px;height:136px}
+  .ring.r2{width:100px;height:100px}
+  .ring.r3{width:64px;height:64px}
+  .arc-svg{width:136px;height:136px}
+  .ptr-wrap{margin-top:.7rem;max-height:38vh}
+}
+@media(max-width:360px){
+  .ptr-text{font-size:.95rem}
+  .orb-wrap{width:116px;height:116px}
+  .ring.r1{width:116px;height:116px}
+  .ring.r2{width:86px;height:86px}
+  .ring.r3{width:56px;height:56px}
+  .arc-svg{width:116px;height:116px}
+  .cbtn.lg{width:56px;height:56px}
+  .cbtn.sm{width:40px;height:40px}
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+
+/* ── 6 nav tabs — slightly tighter ── */
+.nav-tab{font-size:.52rem}
+.nav-tab .ni{font-size:1.15rem}
+
+/* ══════════════════════════════════════════════════════════
+   MANTRA SCREEN — Aham Brahmasmi
+   All styles scoped to #s-mantra to avoid main-app conflicts
+   ══════════════════════════════════════════════════════════ */
+#s-mantra{overflow-y:auto;-webkit-overflow-scrolling:touch}
+.ab-wrap{
+  max-width:580px;width:100%;margin:0 auto;
+  padding:1rem 1.1rem 2rem;
+  display:flex;flex-direction:column;gap:0}
+/* header */
+.ab-hdr{text-align:center;padding:1.2rem 0 1rem;
+  border-bottom:1px solid rgba(201,169,110,.12);margin-bottom:1.2rem}
+.ab-sanskrit{font-family:Georgia,serif;font-size:clamp(1.8rem,5vw,2.8rem);
+  font-weight:400;color:#c9a96e;letter-spacing:.06em;line-height:1.1;
+  text-shadow:0 0 32px rgba(201,169,110,.3);margin-bottom:.3rem}
+.ab-translit{font-size:.78rem;letter-spacing:.22em;
+  color:rgba(232,228,220,.5);font-style:italic;margin-bottom:.2rem}
+.ab-meaning{font-size:.68rem;letter-spacing:.16em;color:rgba(201,169,110,.45)}
+/* player shell */
+.ab-shell{
+  background:rgba(255,255,255,.025);
+  border:1px solid rgba(201,169,110,.12);border-radius:4px;
+  padding:1.5rem 1.25rem 1.25rem;margin-bottom:1.25rem;position:relative}
+.ab-shell::before{
+  content:'';position:absolute;top:-1px;left:20%;right:20%;height:1px;
+  background:linear-gradient(90deg,transparent,#c9a96e,transparent);opacity:.55}
+/* mantra display */
+.ab-mdisp{text-align:center;margin-bottom:1.2rem;min-height:80px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ab-word-row{display:flex;gap:16px;align-items:baseline;
+  justify-content:center;flex-wrap:wrap}
+.ab-word{font-family:Georgia,serif;font-size:clamp(1.6rem,5vw,2.6rem);
+  font-weight:400;color:rgba(232,228,220,.88);opacity:.12;
+  transition:opacity 3.5s ease,text-shadow 3.5s ease;letter-spacing:.04em}
+.ab-word.active{opacity:1;
+  text-shadow:0 0 50px rgba(201,169,110,.5),0 0 100px rgba(201,169,110,.2)}
+.ab-word.brahma{color:#c9a96e}
+.ab-word.brahma.active{
+  text-shadow:0 0 35px rgba(201,169,110,.7),0 0 80px rgba(201,169,110,.3)}
+.ab-dot{width:3px;height:3px;border-radius:50%;background:#7a6040;
+  opacity:0;transition:opacity 2s ease;margin:0 4px;align-self:center}
+.ab-dot.visible{opacity:.5}
+.ab-breath{font-size:.65rem;letter-spacing:.28em;text-transform:uppercase;
+  color:rgba(201,169,110,.35);margin-top:.75rem;min-height:16px;
+  transition:opacity 1.5s ease;opacity:0}
+.ab-breath.visible{opacity:1}
+/* waveform */
+.ab-viz{width:100%;margin-bottom:1rem;display:flex;justify-content:center}
+canvas#ab-waveform{width:100%;max-width:420px;height:40px;opacity:.5}
+/* mode row */
+.ab-mode-row{display:flex;gap:6px;justify-content:center;margin-bottom:1rem}
+.ab-mode-btn{background:none;border:1px solid rgba(201,169,110,.2);
+  color:rgba(232,228,220,.45);padding:5px 14px;
+  font-family:inherit;font-size:.62rem;letter-spacing:.16em;
+  text-transform:uppercase;cursor:pointer;border-radius:2px;
+  transition:all .35s ease}
+.ab-mode-btn:hover{border-color:rgba(201,169,110,.45);color:#c9a96e}
+.ab-mode-btn.active{background:rgba(201,169,110,.1);
+  border-color:#c9a96e;color:#c9a96e}
+/* play button */
+.ab-ctrl{display:flex;align-items:center;justify-content:center;
+  margin-bottom:1rem}
+.ab-play-btn{width:56px;height:56px;border-radius:50%;
+  border:1px solid rgba(201,169,110,.4);
+  background:rgba(201,169,110,.06);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .5s ease;position:relative}
+.ab-play-btn::before{content:'';position:absolute;inset:-5px;
+  border-radius:50%;border:1px solid rgba(201,169,110,.1);
+  transition:all .5s ease}
+.ab-play-btn:hover{border-color:#c9a96e;background:rgba(201,169,110,.12);
+  box-shadow:0 0 24px rgba(201,169,110,.15)}
+.ab-play-btn:hover::before{inset:-9px;opacity:.5}
+.ab-play-btn svg{width:20px;height:20px;fill:#c9a96e;transition:opacity .3s}
+.ab-play-btn.playing{border-color:#c9a96e;
+  box-shadow:0 0 18px rgba(201,169,110,.22)}
+/* sliders */
+.ab-sliders{display:flex;flex-direction:column;gap:10px;width:100%}
+.ab-sl-row{display:flex;align-items:center;gap:10px}
+.ab-sl-lbl{font-size:.6rem;letter-spacing:.22em;text-transform:uppercase;
+  color:rgba(232,228,220,.2);width:58px;flex-shrink:0;text-align:right}
+#s-mantra input[type=range]{
+  -webkit-appearance:none;width:100%;height:1px;
+  background:rgba(201,169,110,.15);outline:none;border:none;cursor:pointer}
+#s-mantra input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:9px;height:9px;border-radius:50%;
+  background:#c9a96e;box-shadow:0 0 6px rgba(201,169,110,.5);
+  transition:transform .2s}
+#s-mantra input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.4)}
+.ab-sl-val{font-size:.6rem;color:#7a6040;width:24px;
+  text-align:right;flex-shrink:0}
+/* session timer */
+.ab-timer{text-align:center;font-size:.62rem;letter-spacing:.18em;
+  color:rgba(201,169,110,.3);margin-top:1rem}
+.ab-timer-num{color:rgba(201,169,110,.5);font-size:.72rem}
+/* spec tabs */
+.ab-tabs-row{display:flex;gap:0;width:100%;
+  border-bottom:1px solid rgba(201,169,110,.1);
+  overflow-x:auto;-webkit-overflow-scrolling:touch;
+  margin-bottom:0;flex-shrink:0}
+.ab-tab-btn{background:none;border:none;
+  color:rgba(232,228,220,.22);font-family:inherit;font-size:.6rem;
+  letter-spacing:.2em;text-transform:uppercase;
+  padding:.65rem .9rem;cursor:pointer;
+  border-bottom:2px solid transparent;margin-bottom:-1px;
+  white-space:nowrap;transition:all .3s ease;flex-shrink:0}
+.ab-tab-btn:hover{color:rgba(232,228,220,.5)}
+.ab-tab-btn.active{color:#c9a96e;border-bottom-color:#c9a96e}
+.ab-section{display:none;padding:1.2rem 0;
+  animation:abFade .35s ease}
+.ab-section.visible{display:block}
+@keyframes abFade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+/* spec typography */
+.ab-h2{font-family:Georgia,serif;font-size:.9rem;font-weight:400;
+  color:#c9a96e;letter-spacing:.1em;margin-bottom:.75rem;
+  padding-bottom:.5rem;border-bottom:1px solid rgba(201,169,110,.1)}
+.ab-h3{font-size:.62rem;letter-spacing:.26em;text-transform:uppercase;
+  color:#7a6040;margin:1.2rem 0 .5rem}
+.ab-p{font-size:.82rem;line-height:1.85;color:rgba(232,228,220,.45);
+  font-weight:300;margin-bottom:.75rem}
+.ab-block{background:rgba(255,255,255,.025);
+  border:1px solid rgba(201,169,110,.1);
+  border-left:2px solid rgba(201,169,110,.3);border-radius:2px;
+  padding:.9rem 1rem;margin:.5rem 0 1rem;
+  font-size:.72rem;line-height:1.8;color:rgba(232,228,220,.4)}
+.ab-block code{font-family:'Courier New',monospace;font-size:.68rem;
+  color:rgba(201,169,110,.8);line-height:1.65;
+  white-space:pre-wrap;display:block}
+.ab-tgrid{display:grid;grid-template-columns:64px 1fr;
+  gap:0;font-size:.75rem;
+  border:1px solid rgba(201,169,110,.1);border-radius:2px;
+  overflow:hidden;margin:.5rem 0 1rem}
+.ab-tgrid .th{background:rgba(201,169,110,.07);padding:.5rem .6rem;
+  font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;
+  color:#7a6040;border-bottom:1px solid rgba(201,169,110,.1)}
+.ab-tgrid .td{padding:.5rem .6rem;color:rgba(232,228,220,.45);
+  border-bottom:1px solid rgba(201,169,110,.06);font-size:.72rem}
+.ab-tgrid .td.ev{color:#c9a96e;font-size:.68rem}
+.ab-tgrid .td.nt{color:rgba(201,169,110,.4);font-size:.65rem;font-style:italic}
+.ab-mstatic{text-align:center;padding:1rem 0;
+  border-top:1px solid rgba(201,169,110,.08);
+  border-bottom:1px solid rgba(201,169,110,.08);margin:.75rem 0}
+.ab-mstatic .ln{font-family:Georgia,serif;font-size:1.1rem;
+  color:rgba(232,228,220,.45);letter-spacing:.06em;line-height:1.9}
+.ab-mstatic .sl{color:rgba(201,169,110,.28);font-style:italic;font-size:.82rem}
+.ab-footer{text-align:center;font-size:.62rem;letter-spacing:.2em;
+  color:rgba(201,169,110,.2);padding:1.5rem 0 .5rem;font-style:italic}
+/* pulse orb overlay inside mantra screen */
+.ab-orb{position:fixed;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  width:280px;height:280px;border-radius:50%;
+  background:radial-gradient(circle,rgba(201,169,110,.04) 0%,transparent 70%);
+  pointer-events:none;z-index:0;transition:background 4s ease}
+.ab-orb.breathing{animation:abOrb 22s ease-in-out infinite}
+@keyframes abOrb{
+  0%,100%{transform:translate(-50%,-50%) scale(.8);opacity:.3}
+  25%{transform:translate(-50%,-50%) scale(1.1);opacity:.7}
+  60%{transform:translate(-50%,-50%) scale(1.15);opacity:.9}
+  80%{transform:translate(-50%,-50%) scale(1);opacity:.6}}
+</style>
+</head>
+<body>
+<canvas id="bg-canvas" role="presentation" aria-hidden="true"></canvas>
+<div id="app" role="main">
+
+<!-- ── MEDITATE ── -->
+<div id="s-meditate" class="screen active" role="region" aria-label="Meditation">
+  <header class="med-header">
+    <div class="hdr-left">
+      <div class="hdr-group" id="hdr-group" aria-live="polite">·</div>
+      <div class="addr-badge" id="addr-badge" aria-live="polite"></div>
+    </div>
+    <div class="hdr-right">
+      <button class="btn-mood" id="btn-mood" data-ui="moodBtn" aria-label="Check in with your mood">How are you?</button>
+      <button class="btn-breath" id="btn-breath" aria-label="Open breathing guide">☽</button>
+      <div class="hdr-clock" id="hdr-clock" aria-live="polite" aria-label="Session time remaining">∞</div>
+    </div>
+  </header>
+  <div class="med-body">
+    <div class="orb-wrap" role="presentation" aria-hidden="true">
+      <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
+      <svg class="arc-svg" viewBox="0 0 164 164" aria-hidden="true">
+        <circle class="arc-track" cx="82" cy="82" r="76"/>
+        <circle id="arc-fill" cx="82" cy="82" r="76"/>
+      </svg>
+      <div class="orb-core"></div>
+    </div>
+    <div class="ptr-wrap" role="region" aria-label="Inquiry pointer" aria-live="polite">
+      <div style="display:flex;align-items:center;justify-content:center;gap:.5rem">
+        <div class="ptr-grp" id="ptr-grp"></div>
+        <div class="voice-dot" id="voice-dot" aria-hidden="true" title="Speaking"></div>
+      </div>
+      <p class="ptr-text" id="ptr-text"></p>
+      <div class="ptr-count" id="ptr-count"></div>
+    </div>
+  </div>
+  <div class="lvl-strip" id="lvl-strip" role="group" aria-label="Seeker level"></div>
+  <div class="dots-wrap" id="dots" role="navigation" aria-label="Pointer position"></div>
+  <div class="controls" id="controls" role="toolbar" aria-label="Session controls">
+    <button class="cbtn sm" id="btn-prev" aria-label="Previous pointer">&#8249;</button>
+    <button class="cbtn sm" id="btn-fav" aria-label="Save pointer">♡</button>
+    <button class="cbtn lg" id="btn-pause" aria-label="Pause session">⏸</button>
+    <button class="cbtn sm" id="btn-sound" aria-label="Toggle sound">🔇</button>
+    <button class="cbtn sm" id="btn-next" aria-label="Next pointer">&#8250;</button>
+  </div>
+  <div class="sound-lbl" id="sound-lbl" aria-live="polite"></div>
+  <div class="voice-mini-row" id="voice-mini-row" aria-label="Voice narration mode" role="group">
+    <button class="vmini on" data-vm="off">Off</button>
+    <button class="vmini" data-vm="gentle">Gentle</button>
+    <button class="vmini" data-vm="deep">Deep</button>
+    <button class="vmini" data-vm="slow">Very Slow</button>
+  </div>
+  <div class="speak-now-row">
+    <button id="btn-speak-now" aria-label="Speak current pointer aloud">▶ Speak Now</button>
+  </div>
+</div>
+
+<!-- ── JOURNEY ── -->
+<div id="s-journey" class="screen" role="region" aria-label="All pointers">
+  <div class="scr-inner">
+    <div class="scr-title" data-ui="allPointers">All Pointers</div>
+    <div class="favs-band" id="favs-band" style="display:none">
+      <div class="favs-lbl" data-ui="saved">Saved</div>
+      <div class="fav-chips" id="fav-chips"></div>
+    </div>
+    <div id="groups-list"></div>
+  </div>
+</div>
+
+<!-- ── JOURNAL ── -->
+<div id="s-journal" class="screen" role="region" aria-label="Journal">
+  <div class="scr-inner">
+    <div class="scr-title" data-ui="journal">Journal</div>
+    <div class="jrn-compose">
+      <textarea class="jrn-textarea" id="jrn-text" data-ph="journalPlaceholder"
+        aria-label="Journal entry"></textarea>
+      <button class="jrn-save-btn" id="jrn-save" data-ui="saveEntry">Save entry</button>
+    </div>
+    <div id="jrn-entries" role="list"></div>
+  </div>
+</div>
+
+<!-- ── GUIDE ── -->
+<div id="s-guide" class="screen" role="region" aria-label="Practice guide">
+  <div class="scr-inner">
+    <div class="scr-title" data-ui="guide">Guide</div>
+    <div id="guide-content"></div>
+  </div>
+</div>
+
+<!-- ── SETTINGS ── -->
+<div id="s-settings" class="screen" role="region" aria-label="Settings">
+  <div class="scr-inner">
+    <div class="scr-title" data-ui="settings">Settings</div>
+    <div class="stats-bar" role="group" aria-label="Session statistics">
+      <div class="stat-item">
+        <div class="stat-val" id="st-sessions">0</div>
+        <div class="stat-lbl" data-ui="sessions">Sessions</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-val" id="st-mins">0</div>
+        <div class="stat-lbl" data-ui="minutesSat">Minutes sat</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-val" id="st-ptrs">0</div>
+        <div class="stat-lbl" data-ui="ptrsMet">Pointers met</div>
+      </div>
+    </div>
+    <div class="set-grp" id="progress-grp" style="display:none">
+      <div class="set-grp-ttl" data-ui="progressTitle">7-Day Progress</div>
+      <div id="progress-display"></div>
+    </div>
+    <div class="set-grp">
+      <div class="set-grp-ttl" data-ui="levelTitle">Seeker Level</div>
+      <div class="level-row" id="level-row"></div>
+    </div>
+    <div class="set-grp">
+      <div class="set-grp-ttl">Language · भाषा · 语言 · Idioma</div>
+      <div class="chip-row" id="lang-chips">
+        <button class="chip on" data-v="en">English</button>
+        <button class="chip" data-v="hi">हिन्दी · Hindi</button>
+        <button class="chip" data-v="zh">中文 · Chinese</button>
+        <button class="chip" data-v="es">Español · Spanish</button>
+      </div>
+    </div>
+    <div class="set-grp">
+      <div class="set-grp-ttl" data-ui="pointerHold">Pointer Hold Time</div>
+      <div class="chip-row" id="dur-chips">
+        <button class="chip" data-v="5000">5 s</button>
+        <button class="chip on" data-v="10000">10 s</button>
+        <button class="chip" data-v="20000">20 s</button>
+        <button class="chip" data-v="30000">30 s</button>
+        <button class="chip" data-v="60000">1 min</button>
+        <button class="chip" data-v="120000">2 min</button>
+        <button class="chip" data-v="300000">5 min</button>
+      </div>
+    </div>
+    <div class="set-grp">
+      <div class="set-grp-ttl" data-ui="sessionLength">Session Length</div>
+      <div class="chip-row" id="sess-chips">
+        <button class="chip on" data-v="0">∞ Open</button>
+        <button class="chip" data-v="300">5 min</button>
+        <button class="chip" data-v="600">10 min</button>
+        <button class="chip" data-v="1200">20 min</button>
+        <button class="chip" data-v="1800">30 min</button>
+        <button class="chip" data-v="2700">45 min</button>
+        <button class="chip" data-v="3600">60 min</button>
+      </div>
+    </div>
+    <div class="set-grp">
+      <div class="set-grp-ttl" data-ui="advanceMode">Advance Mode</div>
+      <div class="chip-row" id="mode-chips">
+        <button class="chip on" data-v="seq" data-ui="sequential">Sequential</button>
+        <button class="chip" data-v="rand" data-ui="random">Random</button>
+        <button class="chip" data-v="man" data-ui="manual">Manual</button>
+      </div>
+      <div class="set-hint" id="mode-hint"></div>
+    </div>
+    <div class="set-grp">
+      <div class="set-grp-ttl" data-ui="sound">Sound</div>
+      <div class="chip-row" id="snd-chips">
+        <button class="chip on" data-v="off" data-ui="soundOff">Off</button>
+        <button class="chip" data-v="bowls" data-ui="singingBowls">Singing Bowls</button>
+        <button class="chip" data-v="bells" data-ui="bells">Bells</button>
+        <button class="chip" data-v="drone" data-ui="deepDrone">Deep Drone</button>
+      </div>
+    </div>
+    <div class="set-grp" id="voice-grp">
+      <div class="set-grp-ttl" data-ui="voiceTitle">Voice Narration</div>
+      <div class="chip-row" id="narr-chips">
+        <button class="chip on" data-v="off"  data-ui="narrOff">Off</button>
+        <button class="chip"    data-v="gentle" data-ui="narrGentle">Gentle</button>
+        <button class="chip"    data-v="deep"   data-ui="narrDeep">Deep</button>
+        <button class="chip"    data-v="slow"   data-ui="narrSlow">Very Slow</button>
+      </div>
+      <div id="voice-controls" style="display:none;margin-top:.75rem">
+        <div class="voice-select-wrap">
+          <select class="voice-select" id="voice-select" aria-label="Choose narration voice"></select>
+          <div class="voice-select-arrow" aria-hidden="true">▾</div>
+        </div>
+        <button class="voice-test-btn" id="voice-test" aria-label="Test selected voice">
+          <span class="vt-dot" aria-hidden="true"></span>
+          <span data-ui="voiceTest">Test Voice</span>
+        </button>
+        <div class="voice-compat-note" id="voice-compat-note"></div>
+      </div>
+    </div>
+    <div class="set-grp">
+      <div class="set-grp-ttl" data-ui="startingPointer">Starting Pointer</div>
+      <div class="chip-row" id="start-chips">
+        <button class="chip on" data-v="0" data-ui="fromBeginning">From beginning</button>
+        <button class="chip" data-v="rand" data-ui="randomEach">Random each time</button>
+      </div>
+    </div>
+    <div class="set-grp" id="pwa-grp" style="display:none">
+      <div class="set-grp-ttl" data-ui="appInstall">App</div>
+      <button class="install-btn visible" id="btn-install" data-ui="installApp">+ Add to Home Screen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MANTRA SCREEN ── -->
+<div id="s-mantra" class="screen" role="region" aria-label="Aham Brahmasmi mantra practice">
+  <div class="ab-orb" id="ab-orb"></div>
+  <div class="ab-wrap">
+    <!-- header -->
+    <div class="ab-hdr">
+      <div class="ab-sanskrit">अहम् ब्रह्मास्मि</div>
+      <div class="ab-translit">Aham Brahmāsmi</div>
+      <div class="ab-meaning">I Am the Absolute · Mahāvākya of the Yajur Veda</div>
+    </div>
+    <!-- player -->
+    <div class="ab-shell">
+      <!-- mantra display -->
+      <div class="ab-mdisp">
+        <div class="ab-word-row">
+          <span class="ab-word" id="ab-wAham">Aham</span>
+          <span class="ab-dot" id="ab-dot1"></span>
+          <span class="ab-word brahma" id="ab-wBrahma">Brahmāsmi</span>
+        </div>
+        <div class="ab-breath" id="ab-breathCue">· breathe ·</div>
+      </div>
+      <!-- waveform -->
+      <div class="ab-viz">
+        <canvas id="ab-waveform" width="840" height="80"></canvas>
+      </div>
+      <!-- mode -->
+      <div class="ab-mode-row">
+        <button class="ab-mode-btn active" data-abmode="standard" onclick="abSetMode('standard')">Standard</button>
+        <button class="ab-mode-btn" data-abmode="headphones" onclick="abSetMode('headphones')">⊃⊂ Headphones</button>
+        <button class="ab-mode-btn" data-abmode="sleep" onclick="abSetMode('sleep')">◑ Sleep</button>
+      </div>
+      <!-- play -->
+      <div class="ab-ctrl">
+        <button class="ab-play-btn" id="ab-playBtn" onclick="abTogglePlay()" aria-label="Play mantra">
+          <svg id="ab-iconPlay" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          <svg id="ab-iconPause" viewBox="0 0 24 24" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        </button>
+      </div>
+      <!-- sliders -->
+      <div class="ab-sliders">
+        <div class="ab-sl-row">
+          <span class="ab-sl-lbl">Mantra</span>
+          <input type="range" id="ab-slMantra" min="0" max="100" value="82" oninput="abUpdateVol('mantra',this.value)">
+          <span class="ab-sl-val" id="ab-valMantra">82</span>
+        </div>
+        <div class="ab-sl-row">
+          <span class="ab-sl-lbl">Tanpura</span>
+          <input type="range" id="ab-slTanpura" min="0" max="100" value="45" oninput="abUpdateVol('tanpura',this.value)">
+          <span class="ab-sl-val" id="ab-valTanpura">45</span>
+        </div>
+        <div class="ab-sl-row">
+          <span class="ab-sl-lbl">Bowl</span>
+          <input type="range" id="ab-slBowl" min="0" max="100" value="38" oninput="abUpdateVol('bowl',this.value)">
+          <span class="ab-sl-val" id="ab-valBowl">38</span>
+        </div>
+        <div class="ab-sl-row">
+          <span class="ab-sl-lbl">Space</span>
+          <input type="range" id="ab-slReverb" min="0" max="100" value="60" oninput="abUpdateVol('reverb',this.value)">
+          <span class="ab-sl-val" id="ab-valReverb">60</span>
+        </div>
+        <div class="ab-sl-row" id="ab-binRow" style="opacity:.3">
+          <span class="ab-sl-lbl">Binaural</span>
+          <input type="range" id="ab-slBinaural" min="0" max="100" value="0" oninput="abUpdateVol('binaural',this.value)">
+          <span class="ab-sl-val" id="ab-valBinaural">0</span>
+        </div>
+      </div>
+      <!-- timer -->
+      <div class="ab-timer">
+        Session &nbsp;·&nbsp;
+        <span class="ab-timer-num" id="ab-timerDisp">00:00</span>
+        &nbsp;·&nbsp; Cycle
+        <span class="ab-timer-num" id="ab-cycleDisp">0</span>
+      </div>
+    </div><!-- /ab-shell -->
+
+    <!-- spec tabs -->
+    <div class="ab-tabs-row">
+      <button class="ab-tab-btn active" onclick="abShowTab('timing',event)">Timing</button>
+      <button class="ab-tab-btn" onclick="abShowTab('ssml',event)">SSML</button>
+      <button class="ab-tab-btn" onclick="abShowTab('audio',event)">Audio Design</button>
+      <button class="ab-tab-btn" onclick="abShowTab('modes',event)">Modes</button>
+      <button class="ab-tab-btn" onclick="abShowTab('integration',event)">Integration</button>
+    </div>
+
+    <!-- TAB: TIMING -->
+    <div class="ab-section visible" id="ab-tab-timing">
+      <h2 class="ab-h2">① Mantra Structure &amp; Exact Repetition Timing</h2>
+      <p class="ab-p">
+        The mantra is structured as a <em>breath-anchored cycle</em> of approximately 28 seconds
+        in Standard mode. Each cycle contains a spoken phase, a resonance phase, and a deep
+        silence phase — mirroring the three states described in Advaita Vedanta. The silence
+        is <em>not empty</em> — it is the most sacred element.
+      </p>
+      <div class="ab-mstatic">
+        <div class="ln">A·hum &nbsp;…&nbsp; Brah·māas·mi</div>
+        <div class="sl">— — — — — — silence — — — — — —</div>
+        <div class="ln">A·hum &nbsp;…&nbsp; Brah·māas·mi</div>
+      </div>
+      <h3 class="ab-h3">Standard Mode — 28-Second Cycle</h3>
+      <div class="ab-tgrid">
+        <div class="th">Time</div><div class="th">Event</div>
+        <div class="td">0.0 s</div><div class="td ev">🔔 Himalayan Bowl strike (pp)</div>
+        <div class="td">1.5 s</div><div class="td ev">"A…" — onset</div>
+        <div class="td">2.0 s</div><div class="td ev">"hum…" — sustain &amp; fade</div>
+        <div class="td">4.5 s</div><div class="td ev">Inter-word breath pause</div>
+        <div class="td">7.3 s</div><div class="td ev">"Brah…" — onset</div>
+        <div class="td">10.8 s</div><div class="td ev">"mi…" — fade to silence</div>
+        <div class="td">12.6 s</div><div class="td nt">♦ Deep silence begins</div>
+        <div class="td">27.0 s</div><div class="td nt">Cycle restarts</div>
+      </div>
+      <h3 class="ab-h3">Syllable Pronunciation &amp; Stress Map</h3>
+      <div class="ab-block"><code>A   · hum      —  Brah  · māas  · mi
+↑       ↓         ↓      ↑      ↓
+breath  resonant  pause  deep   dissolve
+Pitch contour (relative semitones):
+  A      0 st  (root, chest voice)
+  hum   -1 st  (slight descend, nasal resonance)
+  Brah  -2 st  (deeper, from belly)
+  māas  -2 st  (sustained, slightly vibrant)
+  mi    -4 st  (resolve downward, fade to breath)</code></div>
+      <h3 class="ab-h3">Silence Architecture</h3>
+      <p class="ab-p">
+        The 14.4-second silence is not a gap — it is the primary instruction. In Ramana Maharshi's
+        teaching, silence (Mouna) is the highest teaching. The ambient layers (tanpura drone,
+        subtle reverb tail) continue through the silence, preventing cognitive disengagement
+        while preserving the spacious quality of pure awareness.
+      </p>
+    </div>
+    <!-- TAB: SSML -->
+    <div class="ab-section" id="ab-tab-ssml">
+      <h2 class="ab-h2">④ SSML Formatted Narration</h2>
+      <p class="ab-p">
+        These SSML documents are ready for Google Cloud Text-to-Speech (Neural2 / WaveNet),
+        Amazon Polly (Neural), or ElevenLabs. Use voice character <strong>Arjun / deep Indian male</strong>
+        or equivalent.
+      </p>
+      <h3 class="ab-h3">Primary SSML — Standard Loop Unit</h3>
+      <div class="ab-block"><code>&lt;speak&gt;
+  &lt;break time="1500ms"/&gt;
+  &lt;prosody rate="x-slow" pitch="-2st" volume="soft"&gt;
+    &lt;phoneme alphabet="ipa" ph="ɐham"&gt;A&lt;/phoneme&gt;
+    &lt;break time="400ms"/&gt;
+    &lt;prosody pitch="-1st" rate="slow"&gt;
+      &lt;phoneme alphabet="ipa" ph="həm"&gt;hum&lt;/phoneme&gt;
+    &lt;/prosody&gt;
+    &lt;break time="2800ms"/&gt;
+    &lt;prosody pitch="-3st" rate="x-slow"&gt;
+      &lt;phoneme alphabet="ipa" ph="braɦmaːsmi"&gt;Brahmaasmi&lt;/phoneme&gt;
+    &lt;/prosody&gt;
+  &lt;/prosody&gt;
+  &lt;break time="14500ms"/&gt;
+&lt;/speak&gt;</code></div>
+      <h3 class="ab-h3">Recommended TTS Voices</h3>
+      <div class="ab-block"><code>Google WaveNet:  hi-IN-Wavenet-C  (male, deep)
+                 en-IN-Wavenet-B  (male, calm Indian English)
+Amazon Polly:    Kajal (neural) — Hindi
+ElevenLabs:      "Adam" voice model
+                 Stability: 0.85, Clarity: 0.60
+Post-processing:
+  1. Pitch shift: -2 to -3 semitones
+  2. Low-pass: 8kHz shelf (-3dB)
+  3. Convolution reverb: 4–6s cathedral IR, 30% wet</code></div>
+    </div>
+    <!-- TAB: AUDIO DESIGN -->
+    <div class="ab-section" id="ab-tab-audio">
+      <h2 class="ab-h2">⑤–⑧ Audio Design Specifications</h2>
+      <h3 class="ab-h3">⑤ Background Ambient Layers</h3>
+      <div class="ab-block"><code>Layer 1 — Tanpura Drone
+  Tuning: Sa=D2 (73.4Hz) → Pa=A2 (110Hz) → Sa=D3 (146.8Hz)
+  Beat freq: 0.8 Hz natural beating between string pairs
+
+Layer 2 — Himalayan Singing Bowl
+  Fundamental: 432 Hz
+  Overtones:   864, 1344, 2016, 2808 Hz
+  Timing:      Struck once at cycle start
+
+Layer 3 — Schroeder Reverb
+  Comb filters: 4 (delays 29.7–43.7 ms)
+  Allpass:      2 (5 ms, 1.7 ms)
+  LPF output:   4800 Hz</code></div>
+      <h3 class="ab-h3">⑥ Volume Balancing Map</h3>
+      <div class="ab-block"><code>Element          Silence Phase   Speaking Phase
+──────────────────────────────────────────
+Mantra voice     —               -12 dBFS
+Tanpura drone    -18 dBFS        -22 dBFS
+Singing bowl     -40 dBFS tail   -24 dBFS tail
+Reverb wet       60% wet         50% wet</code></div>
+      <h3 class="ab-h3">⑦ Reverb Specifications</h3>
+      <div class="ab-block"><code>Mantra Voice Reverb:
+  Type:       Schroeder synthetic (temple / cave)
+  Decay RT60: ~4 seconds
+  Wet/Dry:    35–60% wet (Space slider)
+
+Tanpura Bowl &amp; Bowl sends:
+  30% and 50% wet respectively</code></div>
+    </div>
+    <!-- TAB: MODES -->
+    <div class="ab-section" id="ab-tab-modes">
+      <h2 class="ab-h2">⑫⑬ Headphones &amp; Sleep Versions</h2>
+      <h3 class="ab-h3">⑫ Headphones Mode</h3>
+      <div class="ab-block"><code>BINAURAL BEAT:
+  Left: 180.0 Hz | Right: 184.0 Hz | Beat: 4.0 Hz (Theta)
+
+MANTRA ADJUSTMENTS:
+  Silence period:  18 seconds (extended)
+  Inter-word gap:  3.5 seconds
+  Voice level:     -14 dBFS (intimate)</code></div>
+      <h3 class="ab-h3">⑬ Sleep Mode</h3>
+      <div class="ab-block"><code>BINAURAL: 3.5 Hz delta
+TIMING:
+  50 s cycle — silence grows to 34 s
+
+VOICE ADJUSTMENTS:
+  Pitch:   -4 to -6 semitones (deeper)
+  Volume:  Starts -16 dBFS, fades gradually</code></div>
+      <h3 class="ab-h3">⑩ Fade-In Design</h3>
+      <div class="ab-block"><code>FADE-IN:
+  0–3 s:  Bowl emerges from silence
+  0–8 s:  Tanpura rises logarithmically
+  8–12 s: First mantra utterance
+
+FADE-OUT:
+  Mantra voice fades → Tanpura drops
+  Final bowl ring → silence</code></div>
+    </div>
+    <!-- TAB: INTEGRATION -->
+    <div class="ab-section" id="ab-tab-integration">
+      <h2 class="ab-h2">⑨ App Integration Guide</h2>
+      <h3 class="ab-h3">Web Audio API Architecture</h3>
+      <div class="ab-block"><code>// AUDIO GRAPH
+//
+//  [Tanpura Oscillators × 4]──┐
+//  [Bowl Synth partials × 5]  ├──[Reverb Send]──┐
+//  [Mantra Formant Synth]─────┤                 ├──[Master]──[Out]
+//  [Binaural L/R Oscs]────────┘                 │
+//                                                │
+// Formant synthesis: sawtooth + bandpass chain
+// Nasal: triangle + 280Hz bandpass (hum resonance)</code></div>
+      <h3 class="ab-h3">Session Intention Labels</h3>
+      <div class="ab-block"><code>Suggested durations:
+   5 min  ≈  10 cycles  · Morning primer
+  10 min  ≈  21 cycles  · Daily practice
+  20 min  ≈  42 cycles  · Standard session
+  45 min  ≈  96 cycles  · Deep inquiry</code></div>
+      <h3 class="ab-h3">Philosophical Framing</h3>
+      <div class="ab-block"><code>"The mantra is a boat. It carries you to the other shore.
+ Once there, you leave the boat behind."
+
+Onboarding note:
+  "This mantra is not a belief.
+   It is a pointer.
+   Let the sound dissolve into what hears it.
+   Rest in the silence between words.
+   That silence — is what you are."</code></div>
+    </div>
+
+    <div class="ab-footer">
+      Aham Brahmāsmi &nbsp;·&nbsp; Return to Source<br>
+      <em>Inspired by Sri Ramana Maharshi · Sri Nisargadatta Maharaj · Ramakant Maharaj</em>
+    </div>
+  </div><!-- /ab-wrap -->
+</div><!-- /s-mantra -->
+
+</div><!-- #app -->
+
+<!-- ── NAV ── -->
+<nav id="nav" role="navigation" aria-label="Main navigation">
+  <button class="nav-tab on" data-s="meditate" aria-label="Meditate" aria-pressed="true">
+    <span class="ni" aria-hidden="true">◉</span><span data-ui="meditate">Meditate</span>
+  </button>
+  <button class="nav-tab" data-s="mantra" aria-label="Mantra" aria-pressed="false">
+    <span class="ni" aria-hidden="true">॥</span><span>Mantra</span>
+  </button>
+  <button class="nav-tab" data-s="journey" aria-label="Journey — all pointers" aria-pressed="false">
+    <span class="ni" aria-hidden="true">◎</span><span data-ui="journey">Journey</span>
+  </button>
+  <button class="nav-tab" data-s="journal" aria-label="Journal" aria-pressed="false">
+    <span class="ni" aria-hidden="true">✎</span><span data-ui="journal">Journal</span>
+  </button>
+  <button class="nav-tab" data-s="guide" aria-label="Practice guide" aria-pressed="false">
+    <span class="ni" aria-hidden="true">≡</span><span data-ui="guide">Guide</span>
+  </button>
+  <button class="nav-tab" data-s="settings" aria-label="Settings" aria-pressed="false">
+    <span class="ni" aria-hidden="true">⚙</span><span data-ui="settings">Settings</span>
+  </button>
+</nav>
+
+<!-- ── COMPLETE OVERLAY ── -->
+<div id="complete" role="dialog" aria-modal="true" aria-label="Session complete">
+  <div class="cmp-orb" aria-hidden="true"></div>
+  <div class="cmp-title" data-ui="sessionComplete">Session Complete</div>
+  <div class="cmp-sub" id="cmp-sub"></div>
+  <div class="cmp-stats" role="group" aria-label="Session summary">
+    <div class="cmp-stat">
+      <div class="cmp-num" id="cmp-mins">0</div>
+      <div class="cmp-lbl" data-ui="minutes">Minutes</div>
+    </div>
+    <div class="cmp-stat">
+      <div class="cmp-num" id="cmp-ptrs">0</div>
+      <div class="cmp-lbl" data-ui="pointers">Pointers</div>
+    </div>
+    <div class="cmp-stat">
+      <div class="cmp-num" id="cmp-favs">0</div>
+      <div class="cmp-lbl" data-ui="saved">Saved</div>
+    </div>
+  </div>
+  <div class="cmp-divider"></div>
+  <div class="cmp-prog-ttl" data-ui="rateSession">How was this sitting?</div>
+  <div class="prog-section" id="prog-rating-ui"></div>
+  <div class="prog-save-note" data-ui="progSaveNote">Saved automatically when you return</div>
+  <button class="cmp-btn" id="btn-continue" data-ui="returnBtn">Return</button>
+</div>
+
+<!-- ── BREATH OVERLAY ── -->
+<div id="breath-overlay" role="dialog" aria-modal="true" aria-label="Breathing guide">
+  <button class="breath-close-btn" id="breath-close" aria-label="Close breathing guide">✕</button>
+  <div class="breath-ring-wrap" aria-hidden="true">
+    <div class="breath-ring" id="breath-ring"></div>
+    <div class="breath-inner" id="breath-inner">
+      <div class="breath-phase-lbl" id="breath-phase">INHALE</div>
+      <div class="breath-count-lbl" id="breath-count">4</div>
+    </div>
+  </div>
+  <div class="breath-pattern-lbl" aria-label="Pattern: 4 in, 4 hold, 6 out, 2 rest">4 · 4 · 6 · 2</div>
+  <div class="breath-cycles-lbl" id="breath-cycles-lbl" aria-live="polite"></div>
+</div>
+
+<!-- ── MOOD PANEL ── -->
+<div id="mood-panel" role="dialog" aria-modal="true" aria-label="Mood check-in">
+  <div class="mood-q" id="mood-q">How is the mind right now?</div>
+  <div class="mood-hint" id="mood-hint">Choose honestly — this shapes your session</div>
+  <div class="mood-grid" id="mood-grid" role="group" aria-label="Mood options"></div>
+  <button class="mood-skip" id="mood-skip">Begin directly →</button>
+</div>
+
+<!-- ── ONBOARDING ── -->
+<div id="onboard" role="dialog" aria-modal="true" aria-label="Choose your path">
+  <div class="ob-title" id="ob-title">Who walks this path?</div>
+  <div class="ob-sub">Choose what feels true. You can change this anytime in Settings.</div>
+  <div class="ob-cards" id="ob-cards" role="group" aria-label="Seeker levels"></div>
+</div>
+
+<!-- ── BEGINNER TASK CARD ── -->
+<div id="task-card" role="dialog" aria-modal="true" aria-label="Preparation practice">
+  <div class="task-badge" id="task-badge">Preparation · Task 1 of 5</div>
+  <div class="task-text" id="task-text"></div>
+  <button class="task-next-btn" id="task-next">Continue</button>
+  <button class="task-skip" id="task-skip">Skip to meditation</button>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// SERVICE WORKER
+// ═══════════════════════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UI STRINGS  (en · hi · zh · es)
+// ═══════════════════════════════════════════════════════════════
+const UI = {
+  en:{
+    meditate:"Meditate",journey:"Journey",journal:"Journal",guide:"Guide",settings:"Settings",
+    allPointers:"All Pointers",saved:"Saved",
+    soundOff:"Off",singingBowls:"Singing Bowls",bells:"Bells",deepDrone:"Deep Drone",
+    group:"Group",of:"of",sessionComplete:"Session Complete",
+    minutes:"Minutes",pointers:"Pointers",returnBtn:"Return",
+    breathe:"☽",moodBtn:"How are you?",
+    inhale:"INHALE",hold:"HOLD",exhale:"EXHALE",rest:"REST",
+    journalPlaceholder:"What arose in your sitting today…",
+    saveEntry:"Save entry",noEntries:"No entries yet.\nWrite after a sitting.",
+    sessions:"Sessions",minutesSat:"Minutes sat",ptrsMet:"Pointers met",
+    levelTitle:"Seeker Level",pointerHold:"Pointer Hold Time",
+    sessionLength:"Session Length",advanceMode:"Advance Mode",sound:"Sound",
+    startingPointer:"Starting Pointer",sequential:"Sequential",random:"Random",manual:"Manual",
+    fromBeginning:"From beginning",randomEach:"Random each time",
+    appInstall:"App",installApp:"+ Add to Home Screen",
+    seqHint:"Sequential moves through all groups in order. Random draws from all {n}. Manual advances only when you tap next.",
+    cmpSub:"The silence was always here.\nIt remains.",
+    breathCycles:"Cycle {n}",addrBadge:"Addressing",
+    taskBadge:"Preparation · Task {a} of {b}",
+    taskContinue:"Continue",taskSkip:"Skip to meditation",
+    progressTitle:"7-Day Progress",
+    rateSession:"How was this sitting?",
+    progDepth:"Stillness",progThoughts:"Thought flow",progPeace:"Peace felt",
+    progSaveNote:"Saved automatically when you return",
+    progNoData:"Log your first session to see trends",
+    lvlSection_beginner:"Beginner Path",
+    lvlSection_seeker:"Seeker Path",
+    lvlSection_advanced:"Advanced Path",
+    lvlSection_sahaja:"The Natural State",
+    voiceTitle:"Voice Narration",
+    narrOff:"Off",narrGentle:"Gentle",narrDeep:"Deep",narrSlow:"Very Slow",
+    voiceTest:"Test Voice",
+    voiceNoSupport:"Voice narration is not supported in this browser. Try Chrome or Safari.",
+    voiceNoVoices:"No voices found. Check your device's text-to-speech settings.",
+    voiceIosNote:"On iPhone: tap a mode, then tap Test Voice first to unlock audio.",
+    voiceAndroidNote:"On Android: voices load in the background — wait a moment if the list is empty.",
+    voiceSelectLabel:"Choose voice",
+  },
+  hi:{
+    meditate:"ध्यान",journey:"यात्रा",journal:"डायरी",guide:"मार्ग",settings:"सेटिंग",
+    allPointers:"सभी संकेत",saved:"सहेजे",
+    soundOff:"बंद",singingBowls:"गायन कटोरे",bells:"घंटियाँ",deepDrone:"गहरा स्वर",
+    group:"समूह",of:"में से",sessionComplete:"सत्र पूर्ण",
+    minutes:"मिनट",pointers:"संकेत",returnBtn:"वापस",
+    breathe:"☽",moodBtn:"मन कैसा है?",
+    inhale:"श्वास लो",hold:"रोको",exhale:"छोड़ो",rest:"विराम",
+    journalPlaceholder:"आज के ध्यान में क्या उठा…",
+    saveEntry:"सहेजें",noEntries:"अभी कोई प्रविष्टि नहीं।\nध्यान के बाद लिखें।",
+    sessions:"सत्र",minutesSat:"बैठे मिनट",ptrsMet:"संकेत मिले",
+    levelTitle:"साधक स्तर",pointerHold:"संकेत समय",
+    sessionLength:"सत्र अवधि",advanceMode:"अग्रिम मोड",sound:"ध्वनि",
+    startingPointer:"प्रारंभ",sequential:"क्रमिक",random:"यादृच्छिक",manual:"मैनुअल",
+    fromBeginning:"शुरू से",randomEach:"हर बार यादृच्छिक",
+    appInstall:"ऐप",installApp:"+ होम स्क्रीन पर जोड़ें",
+    seqHint:"क्रमिक सभी समूहों से गुज़रता है। यादृच्छिक {n} में से लेता है। मैनुअल केवल जब आप अगला दबाएं।",
+    cmpSub:"मौन सदा यहाँ था।\nयह बना रहता है।",
+    breathCycles:"चक्र {n}",addrBadge:"संबोधन",
+    taskBadge:"तैयारी · कार्य {a} / {b}",
+    taskContinue:"आगे",taskSkip:"ध्यान पर जाएँ",
+    progressTitle:"७-दिन की प्रगति",
+    rateSession:"यह ध्यान कैसा रहा?",
+    progDepth:"स्थिरता",progThoughts:"विचार प्रवाह",progPeace:"शांति",
+    progSaveNote:"वापस जाने पर स्वतः सहेजा जाएगा",
+    progNoData:"पहला सत्र दर्ज करें",
+    lvlSection_beginner:"शुरुआती पथ",lvlSection_seeker:"साधक पथ",
+    lvlSection_advanced:"उन्नत पथ",lvlSection_sahaja:"सहज अवस्था",
+    voiceTitle:"वाणी नारायण",narrOff:"बंद",narrGentle:"सौम्य",narrDeep:"गहरा",narrSlow:"बहुत धीमा",
+    voiceTest:"आवाज़ परखें",voiceNoSupport:"यह ब्राउज़र वाणी का समर्थन नहीं करता।",
+    voiceNoVoices:"कोई आवाज़ नहीं मिली। डिवाइस सेटिंग जाँचें।",
+    voiceIosNote:"iPhone पर: पहले एक मोड चुनें, फिर 'आवाज़ परखें' दबाएं।",
+    voiceAndroidNote:"Android पर: आवाज़ें पृष्ठभूमि में लोड होती हैं — थोड़ा प्रतीक्षा करें।",
+    voiceSelectLabel:"आवाज़ चुनें",
+  },
+  zh:{
+    meditate:"冥想",journey:"旅程",journal:"日记",guide:"指引",settings:"设置",
+    allPointers:"所有指引",saved:"已保存",
+    soundOff:"关闭",singingBowls:"颂钵",bells:"铃声",deepDrone:"深沉嗡鸣",
+    group:"组",of:"/",sessionComplete:"会话完成",
+    minutes:"分钟",pointers:"指引",returnBtn:"返回",
+    breathe:"☽",moodBtn:"你的心境如何？",
+    inhale:"吸气",hold:"屏息",exhale:"呼气",rest:"休息",
+    journalPlaceholder:"今日静坐中升起了什么…",
+    saveEntry:"保存记录",noEntries:"尚无记录。\n静坐后再写。",
+    sessions:"次数",minutesSat:"静坐分钟",ptrsMet:"遇见的指引",
+    levelTitle:"修行层次",pointerHold:"指引停留时间",
+    sessionLength:"会话时长",advanceMode:"前进模式",sound:"声音",
+    startingPointer:"起始指引",sequential:"顺序",random:"随机",manual:"手动",
+    fromBeginning:"从头开始",randomEach:"每次随机",
+    appInstall:"应用",installApp:"+ 添加到主屏幕",
+    seqHint:"顺序模式按顺序遍历所有组。随机模式从全部{n}个中抽取。手动模式仅在点击下一步时前进。",
+    cmpSub:"寂静一直在此。\n它依然存在。",
+    breathCycles:"第{n}轮",addrBadge:"探询中",
+    taskBadge:"准备 · 第{a}项，共{b}项",
+    taskContinue:"继续",taskSkip:"直接进入冥想",
+    progressTitle:"7天进展",
+    rateSession:"这次静坐感受如何？",
+    progDepth:"寂静深度",progThoughts:"念头流动",progPeace:"平静感",
+    progSaveNote:"返回时自动保存",
+    progNoData:"记录第一次会话以查看趋势",
+    lvlSection_beginner:"初学者之路",lvlSection_seeker:"探寻者之路",
+    lvlSection_advanced:"深修之路",lvlSection_sahaja:"自然状态",
+    voiceTitle:"语音朗读",narrOff:"关闭",narrGentle:"轻柔",narrDeep:"深沉",narrSlow:"极慢",
+    voiceTest:"测试语音",voiceNoSupport:"此浏览器不支持语音功能。请使用Chrome或Safari。",
+    voiceNoVoices:"未找到语音。请检查设备的文字转语音设置。",
+    voiceIosNote:"iPhone上：先选择模式，然后点击「测试语音」以解锁音频。",
+    voiceAndroidNote:"Android上：语音在后台加载，如列表为空请稍候。",
+    voiceSelectLabel:"选择语音",
+  },
+  es:{
+    meditate:"Meditar",journey:"Viaje",journal:"Diario",guide:"Guía",settings:"Ajustes",
+    allPointers:"Todos los señalamientos",saved:"Guardados",
+    soundOff:"Apagado",singingBowls:"Cuencos tibetanos",bells:"Campanas",deepDrone:"Drone profundo",
+    group:"Grupo",of:"de",sessionComplete:"Sesión completa",
+    minutes:"Minutos",pointers:"Señalamientos",returnBtn:"Volver",
+    breathe:"☽",moodBtn:"¿Cómo está la mente?",
+    inhale:"INHALA",hold:"RETÉN",exhale:"EXHALA",rest:"REPOSA",
+    journalPlaceholder:"¿Qué surgió en tu práctica hoy…",
+    saveEntry:"Guardar entrada",noEntries:"Aún no hay entradas.\nEscribe después de una práctica.",
+    sessions:"Sesiones",minutesSat:"Minutos sentado",ptrsMet:"Señalamientos encontrados",
+    levelTitle:"Nivel del buscador",pointerHold:"Tiempo por señalamiento",
+    sessionLength:"Duración de la sesión",advanceMode:"Modo de avance",sound:"Sonido",
+    startingPointer:"Señalamiento inicial",sequential:"Secuencial",random:"Aleatorio",manual:"Manual",
+    fromBeginning:"Desde el principio",randomEach:"Aleatorio cada vez",
+    appInstall:"App",installApp:"+ Añadir a pantalla de inicio",
+    seqHint:"Secuencial recorre todos los grupos en orden. Aleatorio toma de los {n} totales. Manual avanza solo cuando pulsas siguiente.",
+    cmpSub:"El silencio siempre estuvo aquí.\nPermanece.",
+    breathCycles:"Ciclo {n}",addrBadge:"Explorando",
+    taskBadge:"Preparación · Tarea {a} de {b}",
+    taskContinue:"Continuar",taskSkip:"Ir directamente a meditar",
+    progressTitle:"Progreso 7 días",
+    rateSession:"¿Cómo fue esta sesión?",
+    progDepth:"Quietud",progThoughts:"Flujo mental",progPeace:"Paz sentida",
+    progSaveNote:"Se guarda automáticamente al volver",
+    progNoData:"Registra tu primera sesión para ver tendencias",
+    lvlSection_beginner:"Camino del principiante",lvlSection_seeker:"Camino del buscador",
+    lvlSection_advanced:"Camino avanzado",lvlSection_sahaja:"El Estado Natural",
+    voiceTitle:"Narración de voz",narrOff:"Apagado",narrGentle:"Suave",narrDeep:"Profundo",narrSlow:"Muy lento",
+    voiceTest:"Probar voz",voiceNoSupport:"Este navegador no soporta narración. Usa Chrome o Safari.",
+    voiceNoVoices:"No se encontraron voces. Revisa la configuración de texto a voz.",
+    voiceIosNote:"En iPhone: elige un modo y luego toca 'Probar voz' para activar el audio.",
+    voiceAndroidNote:"En Android: las voces cargan en segundo plano — espera un momento.",
+    voiceSelectLabel:"Elige voz",
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// LEVELS  (4 levels — Beginner → Seeker → Advanced → Natural State)
+// ═══════════════════════════════════════════════════════════════
+const LEVEL_RANK = { beginner:0, seeker:1, advanced:2, sahaja:3 };
+
+const LEVELS = [
+  { key:'all', icon:'∞',
+    label:{en:'All Levels',hi:'सभी स्तर',zh:'所有层次',es:'Todos los niveles'},
+    desc:{en:'All pointers from every level, flowing together — Beginner through to the Natural State.',
+          hi:'सभी स्तरों के संकेत, एक साथ — शुरुआती से सहज अवस्था तक।',
+          zh:'来自每个层次的所有引导，汇流在一起——从初学者到自然状态。',
+          es:'Todos los señalamientos de cada nivel, fluyendo juntos — desde Principiante hasta el Estado Natural.'}
+  },
+  { key:'beginner', icon:'🌱',
+    label:{en:'Beginner',hi:'शुरुआती',zh:'初学者',es:'Principiante'},
+    desc:{en:'Gentle concentration and grounding practices. First steps on the inward path.',
+          hi:'सौम्य एकाग्रता और मूल प्रश्न। अंतर्मार्ग पर पहले कदम।',
+          zh:'温和的专注练习。踏上内在道路的第一步。',
+          es:'Ejercicios suaves de concentración. Los primeros pasos en el camino interior.'}
+  },
+  { key:'seeker', icon:'🔍',
+    label:{en:'Seeker',hi:'साधक',zh:'探寻者',es:'Buscador'},
+    desc:{en:'Deep self-inquiry. Who am I? The question becomes a living flame.',
+          hi:'गहरी आत्म-जाँच। मैं कौन हूँ? प्रश्न एक जीवंत अग्नि बन जाता है।',
+          zh:'深度自我探究。我是谁？这个问题成为活火。',
+          es:'Autoindagación profunda. ¿Quién soy yo? La pregunta se convierte en llama viva.'}
+  },
+  { key:'advanced', icon:'✦',
+    label:{en:'Advanced',hi:'उन्नत',zh:'深修者',es:'Avanzado'},
+    desc:{en:'Direct, uncompromising pointing. The I without the I. For those ready to fully dissolve.',
+          hi:'सीधे, अटल संकेत। मैं के बिना मैं। पूर्ण विलय के लिए तैयारों के लिए।',
+          zh:'直接、毫不妥协的指引。无我之我。为准备彻底消融者而设。',
+          es:'Señalamiento directo. El yo sin el yo. Para quienes están listos para disolverse.'}
+  },
+  { key:'sahaja', icon:'◎',
+    label:{en:'The Natural State',hi:'सहज अवस्था',zh:'自然状态',es:'El Estado Natural'},
+    desc:{en:'Sahaja — abiding as what you are, effortlessly. Oscillation is natural. Continue.',
+          hi:'सहज — जो हो उसके रूप में, बिना प्रयास। उतार-चढ़ाव स्वाभाविक है। जारी रखो।',
+          zh:'萨哈嘉——毫不费力地安住于你所是的。摆动是自然的。继续。',
+          es:'Sahaja — abidando como lo que eres, sin esfuerzo. La oscilación es natural. Continúa.'}
+  },
+];
+
+// ═══════════════════════════════════════════════════════════════
+// MOODS + MOOD POINTERS
+// ═══════════════════════════════════════════════════════════════
+const MOODS = [
+  {key:'peace',    icon:'🌙', label:{en:'At peace', hi:'शांत',   zh:'平静', es:'En paz'}},
+  {key:'neutral',  icon:'·',  label:{en:'Neutral',  hi:'तटस्थ', zh:'中性', es:'Neutral'}},
+  {key:'scattered',icon:'〰', label:{en:'Scattered',hi:'विचलित',zh:'散乱', es:'Disperso'}},
+  {key:'sad',      icon:'☁',  label:{en:'Sad',      hi:'दुखी',  zh:'悲伤', es:'Triste'}},
+  {key:'worried',  icon:'〜', label:{en:'Worried',  hi:'चिंतित',zh:'忧虑', es:'Preocupado'}},
+  {key:'upset',    icon:'⊙',  label:{en:'Upset',    hi:'परेशान',zh:'烦扰', es:'Perturbado'}},
+];
+
+const MOOD_PTRS = {
+  scattered:[
+    {en:"Are you scattered — or is the mind scattered?",
+     hi:"क्या तुम विचलित हो — या मन विचलित है?",
+     zh:"你是散乱的——还是心在散乱？",
+     es:"¿Estás disperso — o es la mente la que está dispersa?"},
+    {en:"Who notices the mind is scattered? Look for that one.",
+     hi:"मन के विचलित होने को कौन देखता है? उसे खोजो।",
+     zh:"谁注意到心是散乱的？找那个。",
+     es:"¿Quién nota que la mente está dispersa? Búscalo."},
+    {en:"What is it that wants to be still? Find that one.",
+     hi:"वह क्या है जो शांत होना चाहता है? उसे खोजो।",
+     zh:"是什么想要平静？找到那个。",
+     es:"¿Qué es lo que quiere estar quieto? Encuéntralo."},
+    {en:"Without the thought 'I am scattered' — are you still scattered?",
+     hi:"'मैं विचलित हूँ' विचार के बिना — क्या तुम तब भी विचलित हो?",
+     zh:"没有'我是散乱的'这个念头——你还散乱吗？",
+     es:"Sin el pensamiento 'estoy disperso' — ¿sigues disperso?"},
+    {en:"Can scatter exist if there is no one to be scattered?",
+     hi:"क्या विचलितता हो सकती है यदि विचलित होने वाला कोई न हो?",
+     zh:"如果没有人来散乱——散乱能存在吗？",
+     es:"¿Puede existir la dispersión si no hay nadie que esté disperso?"},
+    {en:"Who names this feeling 'scattered'? Find the one who names it.",
+     hi:"इस भावना को 'विचलित' कौन नाम देता है? उसे खोजो।",
+     zh:"谁把这种感觉命名为'散乱'？找到命名它的那个。",
+     es:"¿Quién llama a esta sensación 'dispersión'? Encuentra al que la nombra."},
+    {en:"Does the one who names it exist — or is that also just a thought?",
+     hi:"जो नाम देता है — वह है भी? या वह भी सिर्फ एक विचार है?",
+     zh:"那个命名的是否存在——还是那也只是一个念头？",
+     es:"¿Existe el que nombra — o eso también es solo un pensamiento?"},
+  ],
+  sad:[
+    {en:"Are you sad — or is sadness appearing in you?",
+     hi:"क्या तुम दुखी हो — या दुःख तुम्हारे भीतर प्रकट हो रहा है?",
+     zh:"你是悲伤的——还是悲伤在你之中出现？",
+     es:"¿Estás triste — o la tristeza está apareciendo en ti?"},
+    {en:"Who is sad? Look directly for that one.",
+     hi:"कौन दुखी है? सीधे उसे खोजो।",
+     zh:"谁在悲伤？直接找那个。",
+     es:"¿Quién está triste? Búscalo directamente."},
+    {en:"What was lost? And who is it that lost it?",
+     hi:"क्या खोया? और किसने खोया?",
+     zh:"失去了什么？是谁失去了它？",
+     es:"¿Qué se perdió? ¿Y quién es el que lo perdió?"},
+    {en:"Who needed what is now gone?",
+     hi:"जो अब नहीं है उसे किसने चाहा था?",
+     zh:"谁需要那个已经消失的东西？",
+     es:"¿Quién necesitaba lo que ahora se ha ido?"},
+    {en:"Without the thought 'I am sad' — what is here right now?",
+     hi:"'मैं दुखी हूँ' विचार के बिना — अभी यहाँ क्या है?",
+     zh:"没有'我悲伤'的念头——现在这里有什么？",
+     es:"Sin el pensamiento 'estoy triste' — ¿qué hay aquí ahora mismo?"},
+    {en:"If no one is there to feel sad — does sadness exist on its own?",
+     hi:"यदि दुखी होने वाला कोई न हो — क्या दुःख अपने आप रहता है?",
+     zh:"如果没有人去感受悲伤——悲伤自己存在吗？",
+     es:"Si no hay nadie que sienta tristeza — ¿existe la tristeza por sí sola?"},
+    {en:"Who experiences this sadness? Find the experiencer — does it truly exist?",
+     hi:"इस दुःख को कौन अनुभव करता है? उस अनुभवकर्ता को खोजो — वह है भी?",
+     zh:"谁在经历这悲伤？找到经历者——它真的存在吗？",
+     es:"¿Quién experimenta esta tristeza? Encuentra al experimentador — ¿existe realmente?"},
+  ],
+  worried:[
+    {en:"Are you worried — or is worry appearing in the mind?",
+     hi:"क्या तुम चिंतित हो — या चिंता मन में प्रकट हो रही है?",
+     zh:"你是忧虑的——还是忧虑在心中出现？",
+     es:"¿Estás preocupado — o la preocupación está apareciendo en la mente?"},
+    {en:"What are you worried about? Look at it clearly — name it.",
+     hi:"किस बात की चिंता है? उसे स्पष्ट देखो — नाम दो।",
+     zh:"你在担心什么？清楚地看它——给它命名。",
+     es:"¿De qué te preocupas? Míralo claramente — nómbralo."},
+    {en:"Who is worried? Look for that one — where is it?",
+     hi:"कौन चिंतित है? उसे खोजो — वह कहाँ है?",
+     zh:"谁在忧虑？找那个——它在哪里？",
+     es:"¿Quién está preocupado? Búscalo — ¿dónde está?"},
+    {en:"What does this worry want — safety? certainty? control?",
+     hi:"यह चिंता क्या चाहती है — सुरक्षा? निश्चितता? नियंत्रण?",
+     zh:"这忧虑想要什么——安全？确定？控制？",
+     es:"¿Qué quiere esta preocupación — seguridad? ¿certeza? ¿control?"},
+    {en:"Without a 'you' to carry it — can worry exist at all?",
+     hi:"यदि चिंता उठाने वाला 'तुम' न हो — क्या चिंता रह सकती है?",
+     zh:"没有一个'你'来承担它——忧虑根本能存在吗？",
+     es:"Sin un 'tú' que la cargue — ¿puede existir la preocupación en absoluto?"},
+    {en:"If there is no one to worry — does only worry exist, floating alone?",
+     hi:"यदि चिंता करने वाला कोई न हो — क्या केवल चिंता अकेली तैरती रहती है?",
+     zh:"如果没有人去担心——只有忧虑独自漂浮着吗？",
+     es:"Si no hay nadie que se preocupe — ¿existe solo la preocupación flotando sola?"},
+    {en:"Without someone to experience worry — what is left? What is here now?",
+     hi:"चिंता अनुभव करने वाले के बिना — क्या बचता है? अभी यहाँ क्या है?",
+     zh:"没有人去经历忧虑——剩下什么？现在这里有什么？",
+     es:"Sin alguien que experimente la preocupación — ¿qué queda? ¿Qué hay aquí ahora?"},
+  ],
+  upset:[
+    {en:"Are you upset — or is upset appearing in you?",
+     hi:"क्या तुम परेशान हो — या परेशानी तुम्हारे भीतर प्रकट हो रही है?",
+     zh:"你是烦扰的——还是烦扰在你之中出现？",
+     es:"¿Estás perturbado — o la perturbación está apareciendo en ti?"},
+    {en:"Who is upset? Look directly — find that one.",
+     hi:"कौन परेशान है? सीधे देखो — उसे खोजो।",
+     zh:"谁在烦扰？直接看——找那个。",
+     es:"¿Quién está perturbado? Mira directamente — encuéntralo."},
+    {en:"What happened — and who did it happen to?",
+     hi:"क्या हुआ — और वह किसके साथ हुआ?",
+     zh:"发生了什么——又发生在谁身上？",
+     es:"¿Qué pasó — y a quién le pasó?"},
+    {en:"Who is resisting what happened? Find that one.",
+     hi:"जो हुआ उसका विरोध कौन कर रहा है? उसे खोजो।",
+     zh:"谁在抗拒发生的事？找那个。",
+     es:"¿Quién resiste lo que pasó? Encuéntralo."},
+    {en:"Without the thought 'I am upset' — is there still upset?",
+     hi:"'मैं परेशान हूँ' विचार के बिना — क्या तब भी परेशानी है?",
+     zh:"没有'我很烦扰'的念头——还有烦扰吗？",
+     es:"Sin el pensamiento 'estoy perturbado' — ¿sigue habiendo perturbación?"},
+    {en:"Can upset exist without someone to experience it?",
+     hi:"क्या परेशानी बिना अनुभव करने वाले के रह सकती है?",
+     zh:"烦扰能在没有人经历它的情况下存在吗？",
+     es:"¿Puede existir la perturbación sin alguien que la experimente?"},
+    {en:"Who names this feeling 'upset'? Find the namer — does it truly exist?",
+     hi:"इस भावना को 'परेशानी' कौन नाम देता है? उस नाम देने वाले को खोजो — वह है भी?",
+     zh:"谁把这种感觉命名为'烦扰'？找到命名者——它真的存在吗？",
+     es:"¿Quién nombra este sentimiento 'perturbación'? Encuentra al que nombra — ¿existe realmente?"},
+  ],
+  peace:[], neutral:[],
+};
+
+// ═══════════════════════════════════════════════════════════════
+// BEGINNER PREPARATION TASKS
+// ═══════════════════════════════════════════════════════════════
+const BEGINNER_TASKS = [
+  {en:"Close your eyes. Take three slow breaths. Simply feel that you are here — before any thought.",
+   hi:"आँखें बंद करो। तीन धीमी साँसें लो। बस महसूस करो कि तुम यहाँ हो — किसी भी विचार से पहले।",
+   zh:"闭上眼睛。缓慢呼吸三次。只是感受你在这里——在任何念头升起之前。",
+   es:"Cierra los ojos. Respira lento tres veces. Simplemente siente que estás aquí — antes de cualquier pensamiento."},
+  {en:"Feel the weight of your body. Where does it touch the surface beneath you? Stay with that feeling.",
+   hi:"अपने शरीर का वज़न महसूस करो। यह नीचे की सतह को कहाँ छू रहा है? उस अनुभव के साथ रहो।",
+   zh:"感受你身体的重量。它在哪里触碰到你下方的表面？停留在那个感受中。",
+   es:"Siente el peso de tu cuerpo. ¿Dónde toca la superficie debajo de ti? Permanece con esa sensación."},
+  {en:"Listen to any sound near you — without naming it. Just hear the sound. Who is hearing?",
+   hi:"अपने पास किसी भी ध्वनि को सुनो — बिना नाम दिए। बस उस ध्वनि को सुनो। सुनने वाला कौन है?",
+   zh:"聆听你周围的任何声音——不要命名它。只是听那声音。谁在听？",
+   es:"Escucha cualquier sonido cercano — sin nombrarlo. Solo escucha el sonido. ¿Quién escucha?"},
+  {en:"Notice: before you think 'I am here' — are you already here? Check for yourself.",
+   hi:"ध्यान दो: 'मैं यहाँ हूँ' सोचने से पहले — क्या तुम पहले से यहाँ नहीं हो? खुद जाँचो।",
+   zh:"注意：在你想'我在这里'之前——你是否已经在这里？自己检验。",
+   es:"Nota: antes de pensar 'estoy aquí' — ¿ya estás aquí? Compruébalo tú mismo."},
+  {en:"Ask yourself gently: Who is reading these words? Look for that one — without using the word 'I.'",
+   hi:"खुद से धीरे से पूछो: इन शब्दों को कौन पढ़ रहा है? उसे खोजो — 'मैं' शब्द के बिना।",
+   zh:"温柔地问自己：谁在读这些文字？找到那个——不要使用'我'这个字。",
+   es:"Pregúntate suavemente: ¿Quién está leyendo estas palabras? Búscalo — sin usar la palabra 'yo'."},
+];
+
+
+// ═══════════════════════════════════════════════════════════════
+// POINTER GROUPS
+// minLevel: 'beginner' | 'seeker' | 'advanced' | 'sahaja'
+// All existing groups appended first to preserve ALL[] indices
+// ═══════════════════════════════════════════════════════════════
+const GROUPS = [
+  // ── Group 0 ── Beginner
+  {minLevel:'beginner',
+   label:{en:"Turning toward the I",hi:"'मैं' की ओर",zh:"转向'我'",es:"Volviéndose hacia el yo"},
+   pointers:[
+    {en:"Watch I without words",hi:"शब्दों के बिना 'मैं' को देखो",zh:"不用语言，观察「我」",es:"Observa el «yo» sin palabras"},
+    {en:"Who is behind this I?",hi:"इस 'मैं' के पीछे कौन है?",zh:"这个「我」背后是谁？",es:"¿Quién está detrás de este «yo»?"},
+    {en:"Who is that for which the word I arises?",hi:"वह कौन है जिसके लिए 'मैं' शब्द उठता है?",zh:"「我」这个字为谁而升起？",es:"¿Quién es aquel para quien surge la palabra «yo»?"},
+    {en:"Can you find out the source from which I arises?",hi:"क्या तुम उस स्रोत का पता लगा सकते हो जहाँ से 'मैं' उठता है?",zh:"你能找出「我」升起之处的源头吗？",es:"¿Puedes descubrir la fuente de donde surge el «yo»?"},
+  ]},
+  // ── Group 1 ── Beginner
+  {minLevel:'beginner',
+   label:{en:"The timeless one",hi:"कालातीत एक",zh:"永恒的存在",es:"El ser eterno"},
+   pointers:[
+    {en:"Who is the one always there — whether I arises or not?",hi:"वह कौन है जो सदा है — चाहे 'मैं' उठे या न उठे?",zh:"那个永远在的是谁——无论「我」升起与否？",es:"¿Quién es el que siempre está — surja o no el «yo»?"},
+    {en:"Who is the one that was there before the body came into existence?",hi:"वह कौन है जो शरीर के अस्तित्व में आने से पहले भी था?",zh:"在身体存在之前便已在那里的，是谁？",es:"¿Quién es el que estaba antes de que el cuerpo viniera a existir?"},
+    {en:"Who is the one present while the body lives?",hi:"जब तक शरीर जीता है — उपस्थित रहने वाला वह कौन है?",zh:"身体活着时始终在场的，是谁？",es:"¿Quién es el que está presente mientras el cuerpo vive?"},
+    {en:"Who is the one that will be there when the body dies?",hi:"जब शरीर मरेगा — तब भी वहाँ रहने वाला कौन है?",zh:"当身体死去时仍将在那里的，是谁？",es:"¿Quién es el que estará cuando el cuerpo muera?"},
+    {en:"Who is the one that remains after the body dissolves?",hi:"शरीर विलीन होने के बाद भी जो बचता है — वह कौन है?",zh:"身体消融之后依然留存的，是谁？",es:"¿Quién es el que permanece después de que el cuerpo se disuelve?"},
+  ]},
+  // ── Group 2 ── Beginner
+  {minLevel:'beginner',
+   label:{en:"Seeing through the image",hi:"छवि को पार देखना",zh:"看穿表象",es:"Ver más allá de la imagen"},
+   pointers:[
+    {en:"Is the separate person not imagined?",hi:"क्या अलग व्यक्ति कल्पित नहीं है?",zh:"那个分离的人不是被想象出来的吗？",es:"¿No es imaginada la persona separada?"},
+    {en:"Are limitations not just images?",hi:"क्या सीमाएँ सिर्फ छवियाँ नहीं हैं?",zh:"局限难道不只是影像吗？",es:"¿No son las limitaciones solo imágenes?"},
+    {en:"What is left when all images fade away?",hi:"जब सभी छवियाँ मिट जाती हैं तो क्या बचता है?",zh:"当所有影像消逝，剩下什么？",es:"¿Qué queda cuando todas las imágenes se desvanecen?"},
+  ]},
+  // ── Group 3 ── Beginner
+  {minLevel:'beginner',
+   label:{en:"The nature of mind",hi:"मन का स्वभाव",zh:"心的本性",es:"La naturaleza de la mente"},
+   pointers:[
+    {en:"Is the mind real — or just a bundle of thoughts?",hi:"क्या मन वास्तविक है — या केवल विचारों का समूह?",zh:"心是真实的——还是只是念头的集合？",es:"¿Es la mente real — o solo un conjunto de pensamientos?"},
+    {en:"Who says the mind exists?",hi:"मन का अस्तित्व कौन कहता है?",zh:"谁说心存在？",es:"¿Quién dice que la mente existe?"},
+    {en:"If the mind does not exist — who made it exist?",hi:"यदि मन नहीं है — तो किसने उसे अस्तित्व में लाया?",zh:"如果心不存在——是谁让它存在的？",es:"Si la mente no existe — ¿quién la hizo existir?"},
+    {en:"Attending to thoughts — is that not feeding them?",hi:"विचारों पर ध्यान देना — क्या यह उन्हें खिलाना नहीं है?",zh:"关注念头——这不就是在喂养它们吗？",es:"Atender los pensamientos — ¿no es eso alimentarlos?"},
+    {en:"Holding onto a thought — is that not giving it survival?",hi:"किसी विचार को पकड़े रहना — क्या यह उसे जीवित नहीं रखना है?",zh:"执着于一个念头——这不就是给它生存的机会吗？",es:"Aferrarse a un pensamiento — ¿no es eso darle supervivencia?"},
+    {en:"Is it not attention that holds a thought and repeats it again?",hi:"क्या यह ध्यान नहीं है जो विचार को थामता और दोहराता है?",zh:"不正是注意力在抓住一个念头并一再重复它吗？",es:"¿No es la atención la que sostiene un pensamiento y lo repite una y otra vez?"},
+    {en:"What is a thought without attention?",hi:"ध्यान के बिना विचार क्या है?",zh:"没有注意力，念头是什么？",es:"¿Qué es un pensamiento sin atención?"},
+    {en:"Does a thought really exist?",hi:"क्या विचार वास्तव में अस्तित्व में है?",zh:"念头真的存在吗？",es:"¿Existe realmente un pensamiento?"},
+    {en:"Who says a thought exists or does not exist?",hi:"कौन कहता है कि विचार है या नहीं है?",zh:"谁说念头存在或不存在？",es:"¿Quién dice que un pensamiento existe o no existe?"},
+    {en:"Is not that 'one' also a thought — a pseudo self trying to be you?",hi:"क्या वह 'एक' भी एक विचार नहीं है — एक छद्म-स्व जो तुम बनने की कोशिश कर रहा है?",zh:"那个'一'不也是一个念头吗——一个试图成为你的虚假自我？",es:"¿No es ese 'uno' también un pensamiento — un pseudo yo que intenta ser tú?"},
+  ]},
+  // ── Group 4 ── Beginner
+  {minLevel:'beginner',
+   label:{en:"The nature of thoughts",hi:"विचारों का स्वभाव",zh:"思想的本性",es:"La naturaleza de los pensamientos"},
+   pointers:[
+    {en:"If thoughts are not real — do they exist?",hi:"यदि विचार वास्तविक नहीं हैं — तो क्या वे हैं?",zh:"如果念头不是真实的——它们存在吗？",es:"Si los pensamientos no son reales — ¿existen?"},
+    {en:"What is left if thoughts are not real?",hi:"यदि विचार वास्तविक नहीं हैं तो क्या बचता है?",zh:"如果念头不是真实的，剩下什么？",es:"¿Qué queda si los pensamientos no son reales?"},
+    {en:"What is left if there is no mind in reality?",hi:"यदि वास्तव में कोई मन नहीं है तो क्या बचता है?",zh:"如果现实中没有心，剩下什么？",es:"¿Qué queda si en realidad no hay mente?"},
+  ]},
+  // ── Group 5 ── Seeker
+  {minLevel:'seeker',
+   label:{en:"The world and self unravel",hi:"जगत और स्व का विलय",zh:"世界与自我的消融",es:"El mundo y el yo se disuelven"},
+   pointers:[
+    {en:"If thoughts don't exist — do you exist?",hi:"यदि विचार नहीं हैं — तो क्या तुम हो?",zh:"如果念头不存在——你存在吗？",es:"Si los pensamientos no existen — ¿existes tú?"},
+    {en:"If you don't exist — does this world exist?",hi:"यदि तुम नहीं हो — तो यह संसार है क्या?",zh:"如果你不存在——这个世界存在吗？",es:"Si tú no existes — ¿existe este mundo?"},
+    {en:"What exists if nothing perceivable, imaginable, or understandable exists?",hi:"यदि कुछ भी अनुभव, कल्पना या समझ में नहीं आता — तो क्या है?",zh:"如果没有任何可感知、可想象或可理解的东西存在——有什么？",es:"¿Qué existe si no existe nada perceptible, imaginable o comprensible?"},
+  ]},
+  // ── Group 6 ── Seeker
+  {minLevel:'seeker',
+   label:{en:"The open door",hi:"खुला द्वार",zh:"敞开的门",es:"La puerta abierta"},
+   pointers:[
+    {en:"What is there when nothing is there?",hi:"जब कुछ नहीं है तो क्या है?",zh:"什么都没有时，有什么？",es:"¿Qué hay cuando no hay nada?"},
+    {en:"If there is no mind, no self, no known, no unknown — what is left?",hi:"यदि मन नहीं, स्व नहीं, ज्ञात नहीं, अज्ञात नहीं — तो क्या बचता है?",zh:"如果没有心、没有自我、没有已知、没有未知——剩下什么？",es:"Si no hay mente, no hay yo, no hay conocido, no hay desconocido — ¿qué queda?"},
+    {en:"If nothing truly exists, who has questions? And if questions do not exist — what essence is left?",hi:"यदि कुछ भी वास्तव में नहीं है, तो प्रश्न किसके पास है? और यदि प्रश्न भी नहीं है — तो क्या सार बचता है?",zh:"如果什么都真正不存在，谁还有问题？如果连问题也不存在——还剩下什么本质？",es:"Si nada existe verdaderamente, ¿quién tiene preguntas? Y si las preguntas no existen — ¿qué esencia queda?"},
+    {en:"Is this not a full stop — a complete full stop to all search?",hi:"क्या यह एक पूर्ण विराम नहीं है — समस्त खोज का एक संपूर्ण विराम?",zh:"这不就是一个句号——对所有寻找的彻底终止吗？",es:"¿No es esto un punto final — un punto final completo a toda búsqueda?"},
+    {en:"An automatic full stop — after finding that nothing really exists?",hi:"एक स्वाभाविक विराम — यह पाने के बाद कि कुछ भी वास्तव में नहीं है?",zh:"一个自动的句号——在发现什么都真正不存在之后？",es:"Un punto final automático — ¿después de encontrar que nada existe realmente?"},
+    {en:"After finding that all exits exist only in the mind — only in thoughts?",hi:"यह पाने के बाद कि सभी निकास केवल मन में हैं — केवल विचारों में?",zh:"在发现所有出口都只存在于心中——只存在于念头中——之后？",es:"¿Después de encontrar que todas las salidas existen solo en la mente — solo en pensamientos?"},
+    {en:"After finding that thoughts don't really exist — so nothing exists?",hi:"यह पाने के बाद कि विचार वास्तव में नहीं हैं — तो कुछ भी नहीं है?",zh:"在发现念头并不真正存在之后——所以什么都不存在？",es:"¿Después de encontrar que los pensamientos no existen realmente — así que nada existe?"},
+  ]},
+  // ── Group 7 ── Seeker
+  {minLevel:'seeker',
+   label:{en:"Before the word I",hi:"शब्द 'मैं' से पहले",zh:"'我'这个词之前",es:"Antes de la palabra yo"},
+   pointers:[
+    {en:"What if the 'I' itself is imaginary?",hi:"क्या 'मैं' स्वयं कल्पना है?",zh:"如果「我」本身是想象出来的呢？",es:"¿Y si el «yo» mismo es imaginario?"},
+    {en:"From where does this very thought of 'I' arise?",hi:"'मैं' का यह विचार कहाँ से उठता है?",zh:"「我」这个念头从哪里升起？",es:"¿De dónde surge este pensamiento del «yo»?"},
+    {en:"From where does the very word 'I' arise?",hi:"'मैं' शब्द कहाँ से उठता है?",zh:"「我」这个字从哪里升起？",es:"¿De dónde surge la palabra «yo»?"},
+    {en:"What is behind this word 'I'?",hi:"इस 'मैं' शब्द के पीछे क्या है?",zh:"这个「我」字背后是什么？",es:"¿Qué hay detrás de esta palabra «yo»?"},
+    {en:"What are you before this 'I'?",hi:"इस 'मैं' से पहले तुम क्या हो?",zh:"在这个「我」之前你是什么？",es:"¿Qué eres antes de este «yo»?"},
+  ]},
+  // ── Group 8 ── Seeker
+  {minLevel:'seeker',
+   label:{en:"Just before I appears",hi:"'मैं' प्रकट होने से ठीक पहले",zh:"'我'出现之前",es:"Justo antes de que aparezca el yo"},
+   pointers:[
+    {en:"Are you not already here even before this word 'I' starts?",hi:"क्या तुम 'मैं' शुरू होने से भी पहले यहाँ नहीं हो?",zh:"在这个「我」开始之前，你不已经在这里了吗？",es:"¿No estás ya aquí incluso antes de que empiece este «yo»?"},
+    {en:"Are you not without 'I,' just before 'I' appears?",hi:"क्या तुम 'मैं' प्रकट होने से ठीक पहले बिना 'मैं' के नहीं हो?",zh:"就在「我」出现之前，你不是没有「我」的吗？",es:"¿No estás sin «yo», justo antes de que el «yo» aparezca?"},
+    {en:"Just go back. Go back to the source of 'I.'",hi:"बस पीछे जाओ। 'मैं' के स्रोत की ओर लौटो।",zh:"只是回去。回到「我」的源头。",es:"Solo regresa. Regresa a la fuente del «yo»."},
+    {en:"After you, feeling and identity begin — then the label 'I' is given.",hi:"तुम्हारे बाद, भावना और पहचान शुरू होती है — तब उसे 'मैं' कहा जाता है।",zh:"在你之后，感受与身份开始——然后被贴上「我」的标签。",es:"Después de ti, el sentimiento y la identidad comienzan — luego se les da la etiqueta «yo»."},
+  ]},
+  // ── Group 9 ── Advanced (was seeker/all — now advanced for depth)
+  {minLevel:'advanced',
+   label:{en:"Beyond body and images",hi:"शरीर और छवियों से परे",zh:"超越身体与形象",es:"Más allá del cuerpo y las imágenes"},
+   pointers:[
+    {en:"Are you a body?",hi:"क्या तुम शरीर हो?",zh:"你是身体吗？",es:"¿Eres un cuerpo?"},
+    {en:"There are images of the whole universe in your mind — what are you without these images?",hi:"तुम्हारे मन में समस्त सृष्टि की छवियाँ हैं — इन छवियों के बिना तुम क्या हो?",zh:"你的心中有整个宇宙的影像——没有这些影像你是什么？",es:"Hay imágenes de todo el universo en tu mente — ¿qué eres sin estas imágenes?"},
+    {en:"Can you see how all these images appear and stay together?",hi:"क्या तुम देख सकते हो कैसे ये सभी छवियाँ प्रकट होती और साथ रहती हैं?",zh:"你能看到所有这些影像如何出现并聚合在一起吗？",es:"¿Puedes ver cómo todas estas imágenes aparecen y permanecen juntas?"},
+  ]},
+  // ── Group 10 ── Advanced
+  {minLevel:'advanced',
+   label:{en:"The witness",hi:"साक्षी",zh:"见证者",es:"El testigo"},
+   pointers:[
+    {en:"Who is watching all of this?",hi:"यह सब कौन देख रहा है?",zh:"谁在观看这一切？",es:"¿Quién está observando todo esto?"},
+    {en:"Is the watcher itself a thought?",hi:"क्या देखने वाला स्वयं एक विचार है?",zh:"那个观看者本身是一个念头吗？",es:"¿El observador mismo es un pensamiento?"},
+    {en:"Can awareness be aware of itself?",hi:"क्या चेतना स्वयं अपनी जानकारी रख सकती है?",zh:"觉知能觉知自身吗？",es:"¿Puede la conciencia ser consciente de sí misma?"},
+    {en:"What remains when the watcher dissolves?",hi:"जब देखने वाला विलीन हो जाता है तो क्या बचता है?",zh:"当观看者消融，剩下什么？",es:"¿Qué permanece cuando el observador se disuelve?"},
+  ]},
+  // ── Group 11 ── Advanced
+  {minLevel:'advanced',
+   label:{en:"Pure presence",hi:"शुद्ध उपस्थिति",zh:"纯粹的临在",es:"Presencia pura"},
+   pointers:[
+    {en:"What is here before any thought arises?",hi:"कोई भी विचार उठने से पहले यहाँ क्या है?",zh:"在任何念头升起之前，这里有什么？",es:"¿Qué hay aquí antes de que surja cualquier pensamiento?"},
+    {en:"Is there a gap between two thoughts? What lives in that gap?",hi:"दो विचारों के बीच एक अंतर है क्या? उस अंतर में क्या जीता है?",zh:"两个念头之间有间隙吗？那间隙中活着什么？",es:"¿Hay una pausa entre dos pensamientos? ¿Qué vive en esa pausa?"},
+    {en:"What has never come and will never go?",hi:"जो कभी आया नहीं और जाएगा भी नहीं — वह क्या है?",zh:"什么从未来过，也永远不会离去？",es:"¿Qué nunca ha venido y nunca se irá?"},
+  ]},
+  // ── Group 12 ── NEW · Beginner · Breathing with I
+  {minLevel:'beginner',
+   label:{en:"Breathing with the sense of I",hi:"'मैं' की भावना के साथ श्वास",zh:"带着'我'感呼吸",es:"Respirar con la sensación del yo"},
+   pointers:[
+    {en:"Take a slow, deep breath in — as you inhale, feel the sense of 'I.' Let the breath carry that feeling inward.",
+     hi:"धीरे, गहरी साँस लो — जैसे तुम श्वास लेते हो, 'मैं' की भावना महसूस करो। साँस को उस अनुभूति को अंदर ले जाने दो।",
+     zh:"缓慢地深呼吸——当你吸气时，感受'我'的感觉。让呼吸将这种感受带入内心。",
+     es:"Toma una respiración lenta y profunda — al inhalar, siente la sensación del 'yo.' Deja que el aliento lleve esa sensación hacia adentro."},
+    {en:"Hold the breath for three seconds — hold the sense of 'I' with it. Stay with just this.",
+     hi:"साँस को तीन सेकंड रोको — उसके साथ 'मैं' की भावना को रोको। बस यही रहो।",
+     zh:"屏住呼吸三秒——同时保持'我'的感觉。就停留在这里。",
+     es:"Retén el aliento tres segundos — retén la sensación del 'yo' con él. Quédate solo con esto."},
+    {en:"Exhale slowly — release everything but the sense of 'I.' Let all thoughts go with the breath.",
+     hi:"धीरे से साँस छोड़ो — 'मैं' की भावना को छोड़कर सब कुछ छोड़ो। सभी विचारों को साँस के साथ जाने दो।",
+     zh:"缓慢呼气——释放一切，只留下'我'的感觉。让所有念头随呼吸离去。",
+     es:"Exhala lentamente — suelta todo excepto la sensación del 'yo.' Deja que todos los pensamientos se vayan con el aliento."},
+    {en:"Repeat. Inhale with the sense of I — hold for three seconds — exhale. Again and again, gently.",
+     hi:"दोहराओ। 'मैं' की भावना के साथ श्वास लो — तीन सेकंड रोको — छोड़ो। बार-बार, धीरे से।",
+     zh:"重复。带着'我'感吸气——屏息三秒——呼气。一遍又一遍，轻柔地。",
+     es:"Repite. Inhala con la sensación del yo — retén tres segundos — exhala. Una y otra vez, suavemente."},
+    {en:"When other thoughts arise, gently return to the sense of 'I.' Do not fight — simply return.",
+     hi:"जब अन्य विचार उठें, धीरे से 'मैं' की भावना पर लौटो। लड़ो मत — बस लौटो।",
+     zh:"当其他念头升起时，轻柔地回到'我'的感觉。不要抗争——只是回来。",
+     es:"Cuando surjan otros pensamientos, regresa suavemente a la sensación del 'yo.' No luches — simplemente vuelve."},
+    {en:"Merge fully with the sense of 'I.' Be one with it. Let the breath carry you in — until only 'I' remains.",
+     hi:"पूरी तरह 'मैं' की भावना में विलीन हो जाओ। उसके साथ एक हो जाओ। साँस को अंदर ले जाने दो — जब तक केवल 'मैं' न रहे।",
+     zh:"完全融入'我'的感觉。与它合而为一。让呼吸带你进入——直到只有'我'留存。",
+     es:"Fúndete completamente con la sensación del 'yo.' Sé uno con ella. Deja que el aliento te lleve hacia adentro — hasta que solo quede el 'yo.'"},
+  ]},
+  // ── Group 13 ── NEW · Seeker · Who am I?
+  {minLevel:'seeker',
+   label:{en:"Who am I? — Direct inquiry",hi:"मैं कौन हूँ? — सीधी जाँच",zh:"我是谁？——直接探究",es:"¿Quién soy yo? — Indagación directa"},
+   pointers:[
+    {en:"Who am I? Not the body — the body is born and dies. Not the mind — the mind is just thoughts. Then who am I?",
+     hi:"मैं कौन हूँ? शरीर नहीं — शरीर जन्म लेता और मरता है। मन नहीं — मन केवल विचार है। तो मैं कौन हूँ?",
+     zh:"我是谁？不是身体——身体有生有死。不是心——心只是念头。那我是谁？",
+     es:"¿Quién soy yo? No el cuerpo — el cuerpo nace y muere. No la mente — la mente son solo pensamientos. ¿Entonces quién soy yo?"},
+    {en:"Who is asking this question 'Who am I?' Find the one who asks.",
+     hi:"'मैं कौन हूँ?' यह प्रश्न कौन पूछ रहा है? पूछने वाले को खोजो।",
+     zh:"谁在问'我是谁？'找到那个发问的。",
+     es:"¿Quién hace esta pregunta '¿Quién soy yo?' Encuentra al que pregunta."},
+    {en:"Who is answering? 'I am this' — who gives that answer? Look at the giver of answers.",
+     hi:"कौन उत्तर दे रहा है? 'मैं यह हूँ' — यह उत्तर कौन देता है? उत्तर देने वाले को देखो।",
+     zh:"谁在回答？'我是这个'——谁给出这个答案？看看那个给出答案的。",
+     es:"¿Quién responde? 'Yo soy esto' — ¿quién lo dice? Mira al que da las respuestas."},
+    {en:"Who am I? — Ask this not to get a word-answer, but to sink into the silence where the question dissolves.",
+     hi:"मैं कौन हूँ? — यह इसलिए नहीं पूछो कि शब्दों में उत्तर मिले, बल्कि उस मौन में डूबने के लिए जहाँ प्रश्न विलीन हो जाता है।",
+     zh:"我是谁？——不是为了得到文字答案，而是为了沉入问题消融的寂静之中。",
+     es:"¿Quién soy yo? — Pregunta esto no para obtener respuesta en palabras, sino para hundirte en el silencio donde la pregunta se disuelve."},
+    {en:"If all thoughts are absent — do you still exist? Who knows even this?",
+     hi:"यदि सभी विचार अनुपस्थित हों — क्या तुम तब भी हो? यह भी कौन जानता है?",
+     zh:"如果所有念头都不在了——你还存在吗？这个，谁知晓？",
+     es:"Si todos los pensamientos están ausentes — ¿sigues existiendo? ¿Quién sabe incluso esto?"},
+    {en:"You have been asking 'Who am I?' for some time. Who has been doing the asking? Is that one real?",
+     hi:"तुम कुछ समय से 'मैं कौन हूँ?' पूछ रहे हो। कौन पूछता रहा है? क्या वह वास्तविक है?",
+     zh:"你已经问了一段时间'我是谁？'谁一直在发问？那个是真实的吗？",
+     es:"Has estado preguntando '¿Quién soy yo?' por un tiempo. ¿Quién ha estado preguntando? ¿Ese es real?"},
+    {en:"Keep asking: Who am I? Who am I? Who am I? — until the question has no more room to appear.",
+     hi:"पूछते रहो: मैं कौन हूँ? मैं कौन हूँ? मैं कौन हूँ? — जब तक प्रश्न के उठने की जगह न रहे।",
+     zh:"继续追问：我是谁？我是谁？我是谁？——直到这个问题再无处升起。",
+     es:"Sigue preguntando: ¿Quién soy yo? ¿Quién soy yo? ¿Quién soy yo? — hasta que la pregunta no tenga más espacio para aparecer."},
+    {en:"Dive into the 'I.' Not the word — but the very feeling of being. Where does it lead when you go inward?",
+     hi:"'मैं' में डूबो। शब्द नहीं — बल्कि होने की भावना में। जब तुम अंदर जाते हो, यह कहाँ ले जाता है?",
+     zh:"潜入'我'之中。不是那个字——而是存在的感觉。当你向内走时，它通向哪里？",
+     es:"Sumérgete en el 'yo.' No la palabra — sino la sensación de ser. ¿A dónde lleva cuando vas hacia adentro?"},
+    {en:"Who am I without my name? Without my story? Without any memory of myself?",
+     hi:"अपने नाम के बिना मैं कौन हूँ? अपनी कहानी के बिना? अपनी किसी भी स्मृति के बिना?",
+     zh:"没有我的名字，我是谁？没有我的故事？没有任何关于自己的记忆？",
+     es:"¿Quién soy yo sin mi nombre? ¿Sin mi historia? ¿Sin ningún recuerdo de mí mismo?"},
+    {en:"Who am I? — Let this question become a living flame, not an exercise. Let it burn away everything else.",
+     hi:"मैं कौन हूँ? — इस प्रश्न को एक जीवंत अग्नि बनने दो, अभ्यास नहीं। इसे बाकी सब जला देने दो।",
+     zh:"我是谁？——让这个问题成为一团活火，而非练习。让它烧尽一切。",
+     es:"¿Quién soy yo? — Deja que esta pregunta se convierta en llama viva, no en ejercicio. Que queme todo lo demás."},
+  ]},
+  // ── Group 14 ── NEW · Seeker · Witness — first inquiry
+  {minLevel:'seeker',
+   label:{en:"The witness — first inquiry",hi:"साक्षी — प्रथम जाँच",zh:"见证者——初步探究",es:"El testigo — primera indagación"},
+   pointers:[
+    {en:"Are you the witness? Look — who watches these thoughts?",
+     hi:"क्या तुम साक्षी हो? देखो — इन विचारों को कौन देख रहा है?",
+     zh:"你是见证者吗？看——谁在观看这些念头？",
+     es:"¿Eres el testigo? Mira — ¿quién observa estos pensamientos?"},
+    {en:"Who is witnessing? Stay with that one — is it stable, or does it also come and go?",
+     hi:"साक्षी कौन है? उसके साथ रहो — क्या वह स्थिर है, या वह भी आता-जाता है?",
+     zh:"谁在见证？停留在那个——它稳定吗，还是它也来来去去？",
+     es:"¿Quién es el testigo? Quédate con ese — ¿es estable, o también viene y va?"},
+    {en:"Is witnessing itself not an illusion? The watcher too must be watched — by whom?",
+     hi:"क्या साक्षी होना स्वयं एक भ्रम नहीं है? देखने वाले को भी देखा जाना चाहिए — किसके द्वारा?",
+     zh:"见证本身不也是一个幻象吗？那观看者也必须被观看——由谁？",
+     es:"¿No es el acto de ser testigo también una ilusión? El que mira también debe ser observado — ¿por quién?"},
+    {en:"Are you awareness? Who says that? Who are you without the idea of being awareness?",
+     hi:"क्या तुम चेतना हो? यह कौन कहता है? चेतना होने की धारणा के बिना तुम कौन हो?",
+     zh:"你是觉知吗？谁说的？没有'我是觉知'这个概念，你是谁？",
+     es:"¿Eres conciencia? ¿Quién dice eso? ¿Quién eres tú sin la idea de ser conciencia?"},
+    {en:"Are you the background? Who are you without any background at all — without any support?",
+     hi:"क्या तुम पृष्ठभूमि हो? बिल्कुल किसी पृष्ठभूमि के बिना — बिना किसी आधार के — तुम कौन हो?",
+     zh:"你是背景吗？完全没有任何背景——没有任何支撑——你是谁？",
+     es:"¿Eres el fondo? ¿Quién eres tú sin ningún fondo en absoluto — sin ningún apoyo?"},
+  ]},
+  // ── Group 15 ── NEW · Advanced · The I without the I
+  {minLevel:'advanced',
+   label:{en:"The I without the I",hi:"मैं के बिना मैं",zh:"无我之我",es:"El yo sin el yo"},
+   pointers:[
+    {en:"Keep your attention on the 'I' — the 'I' without the word or letter of 'I.' Stay there.",
+     hi:"'मैं' पर ध्यान रखो — वह 'मैं' जो 'मैं' के शब्द या अक्षर के बिना है। वहाँ रहो।",
+     zh:"将注意力保持在'我'上——那个没有'我'这个词或字母的'我'。停留在那里。",
+     es:"Mantén tu atención en el 'yo' — el 'yo' sin la palabra ni la letra del 'yo.' Quédate ahí."},
+    {en:"Find out: are you separate from the absolute I? The I without word, sense, or feeling of I?",
+     hi:"पता लगाओ: क्या तुम परम 'मैं' से अलग हो? वह 'मैं' जो 'मैं' के शब्द, भावना या अनुभव के बिना है?",
+     zh:"探究：你是否与那个绝对的'我'分离？那个没有文字、感知或感觉的'我'？",
+     es:"Descubre: ¿eres separado del Yo absoluto? El Yo sin palabra, sentido ni sensación de yo."},
+    {en:"Are you not the 'I' without the label of 'I' — without this very sense of 'I'?",
+     hi:"क्या तुम वह 'मैं' नहीं हो जो 'मैं' के लेबल के बिना है — इस 'मैं' की भावना के भी बिना?",
+     zh:"你不正是那个没有'我'这个标签的'我'——甚至没有这种'我'感的'我'吗？",
+     es:"¿No eres el 'yo' sin la etiqueta del 'yo' — sin este mismo sentido del 'yo'?"},
+    {en:"How are you without even the word, feeling, or sense of I? Rest there — what is that?",
+     hi:"'मैं' के शब्द, भावना या अनुभव के बिना तुम कैसे हो? वहाँ विश्राम करो — वह क्या है?",
+     zh:"没有'我'的词语、感受或感知，你是什么样的？在那里休息——那是什么？",
+     es:"¿Cómo eres sin la palabra, el sentimiento o el sentido del yo? Descansa ahí — ¿qué es eso?"},
+    {en:"Be that source — live from where the word 'I' arises. Not the 'I' — but the source of the 'I.'",
+     hi:"वह स्रोत बनो — वहाँ से जियो जहाँ से 'मैं' शब्द उठता है। 'मैं' नहीं — बल्कि 'मैं' का स्रोत।",
+     zh:"成为那个源头——从'我'这个词升起的地方生活。不是'我'——而是'我'的源头。",
+     es:"Sé esa fuente — vive desde donde surge la palabra 'yo.' No el 'yo' — sino la fuente del 'yo.'"},
+    {en:"Who are you without naming it? Without labeling it? Without thinking about it at all?",
+     hi:"इसे नाम दिए बिना तुम कौन हो? इसे लेबल किए बिना? इसके बारे में बिल्कुल सोचे बिना?",
+     zh:"不去命名它，你是谁？不去贴标签？完全不去思考它？",
+     es:"¿Quién eres sin nombrarlo? ¿Sin etiquetarlo? ¿Sin pensarlo en absoluto?"},
+    {en:"Merge into that 'I' — the 'I' without the word, letter, or sound of 'I.' Disappear there.",
+     hi:"उस 'मैं' में विलीन हो जाओ — वह 'मैं' जो 'मैं' के शब्द, अक्षर या ध्वनि के बिना है। वहाँ विलुप्त हो जाओ।",
+     zh:"融入那个'我'——那个没有'我'这个词、字母或声音的'我'。在那里消失。",
+     es:"Fúndete en ese 'yo' — el 'yo' sin la palabra, letra ni sonido del 'yo.' Desaparece allí."},
+  ]},
+  // ── Group 16 ── NEW · Advanced · Who is the witness? — dissolution
+  {minLevel:'advanced',
+   label:{en:"Who is the witness? — dissolution",hi:"साक्षी कौन है? — विलय",zh:"谁是见证者？——消融",es:"¿Quién es el testigo? — disolución"},
+   pointers:[
+    {en:"You say 'I am the witness.' — Who witnesses the witness? Go there.",
+     hi:"तुम कहते हो 'मैं साक्षी हूँ।' — साक्षी का साक्षी कौन है? वहाँ जाओ।",
+     zh:"你说'我是见证者。'——谁来见证那个见证者？去那里。",
+     es:"Dices 'yo soy el testigo.' — ¿Quién es testigo del testigo? Ve allí."},
+    {en:"Is witnessing not also an illusion — one more object appearing in awareness?",
+     hi:"क्या साक्षी होना भी एक भ्रम नहीं है — चेतना में प्रकट होने वाली एक और वस्तु?",
+     zh:"见证本身不也是一个幻象吗——又一个在觉知中出现的对象？",
+     es:"¿No es el ser testigo también una ilusión — un objeto más que aparece en la conciencia?"},
+    {en:"Are you awareness? — Who says that? Who are you without the concept 'I am awareness'?",
+     hi:"क्या तुम चेतना हो? — यह कौन कहता है? 'मैं चेतना हूँ' इस अवधारणा के बिना तुम कौन हो?",
+     zh:"你是觉知吗？——谁说的？没有'我是觉知'这个概念，你是谁？",
+     es:"¿Eres conciencia? — ¿Quién lo dice? ¿Quién eres sin el concepto 'soy conciencia'?"},
+    {en:"Who are you without assuming any object — without awareness, supreme, absolute, witness, consciousness, or any available name or image?",
+     hi:"किसी भी वस्तु को स्वीकार किए बिना — बिना चेतना, परम, निरपेक्ष, साक्षी या किसी भी नाम या छवि के — तुम कौन हो?",
+     zh:"不假设任何对象——没有觉知、至上、绝对、见证、意识或任何可用的名称或形象——你是谁？",
+     es:"¿Quién eres sin asumir ningún objeto — sin conciencia, supremo, absoluto, testigo, awareness ni ningún nombre o imagen?"},
+    {en:"You are not the background. You are not awareness. You are not the witness. What remains?",
+     hi:"तुम पृष्ठभूमि नहीं हो। तुम चेतना नहीं हो। तुम साक्षी नहीं हो। क्या बचता है?",
+     zh:"你不是背景。你不是觉知。你不是见证者。还剩什么？",
+     es:"No eres el fondo. No eres la conciencia. No eres el testigo. ¿Qué queda?"},
+  ]},
+  // ── Group 17 ── NEW · Sahaja · The Natural State
+  {minLevel:'sahaja',
+   label:{en:"The Natural State",hi:"सहज अवस्था",zh:"自然状态",es:"El Estado Natural"},
+   pointers:[
+    {en:"There is no more path. There is no seeker. What remains when the journey itself dissolves?",
+     hi:"अब कोई पथ नहीं। कोई साधक नहीं। जब यात्रा स्वयं विलीन हो जाती है — क्या बचता है?",
+     zh:"再无道路。再无寻者。当旅程本身消融——剩下什么？",
+     es:"No hay más camino. No hay buscador. ¿Qué queda cuando el propio viaje se disuelve?"},
+    {en:"This is the natural state — not an achievement. It was never absent. You were never truly lost.",
+     hi:"यह प्राकृतिक अवस्था है — कोई उपलब्धि नहीं। यह कभी अनुपस्थित नहीं थी। तुम वास्तव में कभी खोए नहीं थे।",
+     zh:"这就是自然状态——不是一种成就。它从未缺席。你从未真正迷失过。",
+     es:"Este es el estado natural — no un logro. Nunca estuvo ausente. Nunca estuviste verdaderamente perdido."},
+    {en:"When the personality returns — do not resist. Let it move. You are still what you always were.",
+     hi:"जब व्यक्तित्व लौटे — प्रतिरोध मत करो। उसे चलने दो। तुम अभी भी वही हो जो सदा से थे।",
+     zh:"当个体性返回时——不要抗拒。让它流动。你仍是你一直以来所是的。",
+     es:"Cuando la personalidad regresa — no resistas. Déjala moverse. Sigues siendo lo que siempre fuiste."},
+    {en:"Oscillation between stillness and the personal is not failure. It is the deepening. Continue.",
+     hi:"सहज और व्यक्तिगत के बीच उतार-चढ़ाव असफलता नहीं है। यह गहराता जाना है। जारी रखो।",
+     zh:"在自然状态与个体之间的摆动不是失败。这是深化。继续。",
+     es:"La oscilación entre la quietud y lo personal no es un fracaso. Es la profundización. Continúa."},
+    {en:"Nothing to attain. Nothing to protect. Nothing to hold. Rest as what you are — without effort.",
+     hi:"न कुछ पाना है। न कुछ बचाना है। न कुछ थामना है। जो हो उसके रूप में विश्राम करो — बिना प्रयास।",
+     zh:"没有什么可以获得。没有什么可以守护。没有什么可以持守。就安住于你所是的——无需努力。",
+     es:"Nada que alcanzar. Nada que proteger. Nada que sostener. Descansa como lo que eres — sin esfuerzo."},
+    {en:"This silence is not something you entered. You are the silence. You always have been.",
+     hi:"यह मौन कोई ऐसी चीज नहीं जिसमें तुम प्रवेश किए। तुम ही मौन हो। सदा से।",
+     zh:"这寂静不是你进入的某个地方。你就是那寂静。一直如此。",
+     es:"Este silencio no es algo en lo que entraste. Tú eres el silencio. Siempre lo has sido."},
+    {en:"When the sense of 'I' arises — smile. It is just an old habit playing itself out. You know who you are.",
+     hi:"जब 'मैं' का भाव उठे — मुस्कुराओ। यह केवल एक पुरानी आदत है जो खुद को दोहरा रही है। तुम जानते हो तुम कौन हो।",
+     zh:"当'我'感升起时——微笑。这只是一个旧习惯在自我演绎。你知道自己是谁。",
+     es:"Cuando surge el sentido del 'yo' — sonríe. Es solo un viejo hábito que se repite. Sabes quién eres."},
+    {en:"Live from here. Move from here. Speak from here. Act from here. This is Sahaja — the Natural State.",
+     hi:"यहाँ से जियो। यहाँ से चलो। यहाँ से बोलो। यहाँ से काम करो। यही सहज है — स्वाभाविक अवस्था।",
+     zh:"从这里生活。从这里行动。从这里说话。从这里作为。这就是萨哈嘉——自然状态。",
+     es:"Vive desde aquí. Muévete desde aquí. Habla desde aquí. Actúa desde aquí. Esto es Sahaja — el Estado Natural."},
+  ]},
+
+  // ── Group 18 ── NEW · Advanced · Can the mind touch what you really are?
+  {minLevel:'advanced',
+   label:{en:"Can the mind touch what you really are?",hi:"क्या मन वह छू सकता है जो तुम वास्तव में हो?",zh:"心能触及你真正所是的吗？",es:"¿Puede la mente tocar lo que realmente eres?"},
+   pointers:[
+    {en:"Can even the deepest sense of I — without words — touch who you really are?",hi:"क्या 'मैं' की गहरी-से-गहरी भावना भी — बिना शब्दों के — उसे छू सकती है जो तुम वास्तव में हो?",zh:"即使最深处的无言'我'感——也能触及你真正所是的吗？",es:"¿Puede incluso el sentido más profundo del yo — sin palabras — tocar quien realmente eres?"},
+    {en:"Can the mind touch who you really are?",hi:"क्या मन उसे छू सकता है जो तुम वास्तव में हो?",zh:"心能触及你真正所是的吗？",es:"¿Puede la mente tocar quien realmente eres?"},
+    {en:"Can thoughts touch who you really are?",hi:"क्या विचार उसे छू सकते हैं जो तुम वास्तव में हो?",zh:"念头能触及你真正所是的吗？",es:"¿Pueden los pensamientos tocar quien realmente eres?"},
+    {en:"Is it not that when the mind cannot comprehend who you really are — it creates a pseudo self? A false self?",hi:"क्या यह नहीं है कि जब मन यह नहीं समझ पाता कि तुम वास्तव में कौन हो — तो वह एक छद्म-स्व बना लेता है? एक झूठा स्व?",zh:"是否正是因为心无法理解你真正是谁——它才创造了一个虚假自我？一个伪自我？",es:"¿No es que cuando la mente no puede comprender quien realmente eres — crea un pseudo yo? ¿Un falso yo?"},
+    {en:"Are you not always that — untouched by the mind?",hi:"क्या तुम सदा वही नहीं हो — मन से अछूते?",zh:"你不一直是那个——不被心所触及的吗？",es:"¿No eres siempre eso — intocado por la mente?"},
+    {en:"Are you not the one — unfathomable, unknown? That no mind, no intelligence can comprehend?",hi:"क्या तुम वह नहीं हो — अथाह, अज्ञेय? जिसे कोई मन, कोई बुद्धि समझ नहीं सकती?",zh:"你不正是那个——深不可测、不可知的？没有任何心、没有任何智识能够理解的？",es:"¿No eres el que — insondable, desconocido? Que ninguna mente, ninguna inteligencia puede comprender?"},
+  ]},
+
+  // ── Group 20 ── Advanced · Watching separation arise
+  {minLevel:'advanced',
+   label:{en:"Watching separation arise",hi:"अलगाव को उठते देखना",zh:"观察分离的生起",es:"Observando surgir la separación"},
+   pointers:[
+    {en:"You cannot watch yourself — how can an eye watch itself?",
+     hi:"तुम स्वयं को नहीं देख सकते — आँख अपने आप को कैसे देख सकती है?",
+     zh:"你无法看见你自己——眼睛怎么能看见自己？",
+     es:"No puedes observarte a ti mismo — ¿cómo puede un ojo verse a sí mismo?"},
+    {en:"You also cannot be the Self, the Absolute, enlightened, or realised — how can you become something you already are?",
+     hi:"तुम स्वयं, परम, प्रबुद्ध, या साक्षात्कृत भी नहीं हो सकते — तुम उसे कैसे बन सकते हो जो तुम पहले से ही हो?",
+     zh:"你也无法成为自性、绝对、觉悟者或证悟者——你怎么能成为你本已是的东西？",
+     es:"Tampoco puedes ser el Ser, lo Absoluto, iluminado o realizado — ¿cómo puedes convertirte en algo que ya eres?"},
+    {en:"You can only not-be what you are not.",
+     hi:"तुम केवल वही नहीं हो सकते जो तुम नहीं हो।",
+     zh:"你只能不是你所不是的。",
+     es:"Solo puedes dejar de ser lo que no eres."},
+    {en:"Watch carefully how from wholeness the effort and thought of self-separation arises.",
+     hi:"ध्यान से देखो कि पूर्णता से अलगाव का प्रयास और विचार कैसे उठता है।",
+     zh:"仔细观察：从整体中，自我分离的努力和念头是如何生起的。",
+     es:"Observa atentamente cómo desde la totalidad surge el esfuerzo y el pensamiento de separación del yo."},
+    {en:"Watch each time separation arises — see how the pseudo-self appears as a separate person, and the world as separate objects.",
+     hi:"हर बार जब अलगाव उठे तब देखो — देखो कि कैसे छद्म-स्व एक अलग व्यक्ति के रूप में और जगत अलग वस्तुओं के रूप में प्रकट होता है।",
+     zh:"每当分离生起时，仔细观察——看伪我如何显现为一个独立的人，世界如何显现为独立的对象。",
+     es:"Cada vez que surge la separación — observa cómo el pseudo-yo aparece como una persona separada y el mundo como objetos separados."},
+    {en:"Watch how objects and images arise within wholeness.",
+     hi:"देखो कि वस्तुएं और चित्र पूर्णता के भीतर कैसे उठते हैं।",
+     zh:"观察对象和影像是如何在整体之中生起的。",
+     es:"Observa cómo los objetos e imágenes surgen dentro de la totalidad."},
+    {en:"The appearance of self is not dualism.",
+     hi:"स्व का प्रकटन द्वैत नहीं है।",
+     zh:"自我的显现并非二元对立。",
+     es:"La aparición del yo no es dualismo."},
+  ]},
+
+  // ── Group 21 ── Sahaja · Who claims?
+  {minLevel:'sahaja',
+   label:{en:"Who claims?",hi:"दावा कौन करता है?",zh:"谁在宣称？",es:"¿Quién reclama?"},
+   pointers:[
+    {en:"Is 'I' not dualism?",
+     hi:"क्या 'मैं' द्वैत नहीं है?",
+     zh:"'我'不就是二元对立吗？",
+     es:"¿No es el 'yo' dualismo?"},
+    {en:"Who claims this I-amness?",
+     hi:"इस 'मैं हूँ' को कौन दावा करता है?",
+     zh:"是谁在宣称这个'我在'？",
+     es:"¿Quién reclama este sentido de ser yo?"},
+    {en:"Is enlightenment not a claimed state?",
+     hi:"क्या ज्ञान एक दावा की गई अवस्था नहीं है?",
+     zh:"觉悟不就是一种被宣称的状态吗？",
+     es:"¿No es la iluminación un estado que alguien reclama?"},
+    {en:"Who is enlightened? Who is realised?",
+     hi:"कौन प्रबुद्ध है? कौन साक्षात्कृत है?",
+     zh:"谁是觉悟者？谁是证悟者？",
+     es:"¿Quién está iluminado? ¿Quién está realizado?"},
+    {en:"Who separates from oneness and merges back — who observes it? Who claims it?",
+     hi:"एकता से कौन अलग होता है और वापस मिलता है — कौन इसे देखता है? कौन इसका दावा करता है?",
+     zh:"是谁从一体中分离又归融回去——谁在观察这一切？谁在宣称这一切？",
+     es:"¿Quién se separa de la unidad y vuelve a ella — quién lo observa? ¿Quién lo reclama?"},
+    {en:"To whom is the utter silence?",
+     hi:"परम मौन किसे प्रतीत होता है?",
+     zh:"那彻底的寂静，是向谁显现的？",
+     es:"¿A quién aparece el silencio absoluto?"},
+    {en:"Who experiences nothingness?",
+     hi:"शून्यता को कौन अनुभव करता है?",
+     zh:"是谁在体验虚无？",
+     es:"¿Quién experimenta la nada?"},
+    {en:"Who claims emptiness?",
+     hi:"शून्यता का दावा कौन करता है?",
+     zh:"是谁在宣称空性？",
+     es:"¿Quién reclama el vacío?"},
+    {en:"Who has any choice to do anything?",
+     hi:"कुछ भी करने का विकल्प किसके पास है?",
+     zh:"谁有任何选择去做什么？",
+     es:"¿Quién tiene alguna elección para hacer algo?"},
+    {en:"Who is the doer when all is unknown?",
+     hi:"जब सब अज्ञात है तो कर्ता कौन है?",
+     zh:"当一切皆未知时，谁是行为者？",
+     es:"¿Quién es el hacedor cuando todo es desconocido?"},
+    {en:"Who claims knowingness — and who says all is unknown?",
+     hi:"ज्ञान का दावा कौन करता है — और कौन कहता है कि सब अज्ञात है?",
+     zh:"是谁在宣称知晓——又是谁说一切皆未知？",
+     es:"¿Quién reclama el conocimiento — y quién dice que todo es desconocido?"},
+    {en:"Who asks questions? Who replies?",
+     hi:"प्रश्न कौन पूछता है? उत्तर कौन देता है?",
+     zh:"谁在发问？谁在回答？",
+     es:"¿Quién hace preguntas? ¿Quién responde?"},
+    {en:"Are there questions? To whom do these questions appear?",
+     hi:"क्या कोई प्रश्न हैं? ये प्रश्न किसे प्रतीत होते हैं?",
+     zh:"真的有问题吗？这些问题向谁显现？",
+     es:"¿Hay preguntas? ¿A quién aparecen estas preguntas?"},
+  ]},
+];
+
+// Guide content
+const GUIDE = [
+  {title:"How to Use These Pointers",body:"There is no single way to use these pointers. Each person must find what feels alive and true for them.<br><br>Sometimes, one pointer alone may be enough for an entire sitting. Take something like: <em>\"Watch the 'I' before words.\"</em><br><br>With this, there is nothing to analyse or understand. Simply place your attention at the source — the silent presence that is already here before the word 'I' arises, before any thought, label, or identity appears. Rest there. See what remains when you stop adding to it.<br><br>You may pause the app and stay with a single pointer for as long as it feels alive. There is no fixed method. There is no correct duration. The pointer is only a finger pointing — your attention is what matters."},
+  {title:"Listening Mode",body:"At other times, you may simply wish to listen.<br><br>Turn on narration and allow the pointers to flow continuously. While travelling, resting, or during the quiet spaces of daily life, let these words settle gently within you — through earphones, without effort, without analysis. Over time, they may begin to unfold on their own, in silence, in understanding, without you doing anything at all.<br><br>The interval between pointers can be adjusted from a few seconds to thirty or forty seconds, or paused indefinitely. The app is intentionally open. Use it as it serves you."},
+  {title:"Purpose",body:"These pointers are not ideas to think about. They are designed to snatch away mental images and identities — and sink you back into the source. Where nothing is left. No identification. No self. No source. Just deep silence in nothingness."},
+  {title:"When the mind wanders",body:"Use these pointers the moment you notice the mind has wandered. Not as punishment — as a gentle return. The pointer is a hand pointing back to what is already here."},
+  {title:"When the mind creates questions or doubts",body:"Turn the question back on itself. Ask directly —",sub:"Who has these thoughts? Who wants peace? Who needs what? Who wants enlightenment? Is enlightenment not also imaginary? Who is the separate person?"},
+  {title:"When happy or at ease",body:"Use the pointers even then. Ask —",sub:"Who is happy? Who feels pleasure? Who has pride? Is this not also the mind creating a you who enjoys?"},
+  {title:"When sad or in suffering",body:"Use the pointers especially then. Ask —",sub:"Who is sad? Who wanted what? Who lost what? Who are these fears?"},
+  {title:"How long to use them",body:"Use them until nothing is left — only deep, unnamed, unobserved silence. When the sense of a separate person arises again, start once more."},
+  {title:"The end of the path",body:"Continue until all dissolves. Until the need for these pointers vanishes on its own. Until there is no one left to ask and no one to be asked. No one to question and no one to answer."},
+];
+
+// ─── Flatten all pointers into ALL[] — order is stable; new groups appended ───
+const ALL = [];
+const GROUP_OFFSETS = [];
+let _off = 0;
+GROUPS.forEach((g, gi) => {
+  GROUP_OFFSETS[gi] = _off;
+  g.pointers.forEach((p, pi) => {
+    ALL.push({ text: p, group: g.label, gi, pi, isFirst: pi === 0, minLevel: g.minLevel || 'beginner' });
+  });
+  _off += g.pointers.length;
+});
+
+
+// ═══════════════════════════════════════════════════════════════
+// STATE & PERSISTENCE
+// ═══════════════════════════════════════════════════════════════
+const LS_KEY = 'rts_v3';
+const JRN_KEY = 'rts_jrn_v1';
+const PROG_KEY = 'rts_prog_v1';
+
+function loadLS() { try { return JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch { return {}; } }
+function saveLS(d) { try { localStorage.setItem(LS_KEY, JSON.stringify(d)); } catch(e) { console.warn('Storage error:', e); } }
+function loadJrn() { try { return JSON.parse(localStorage.getItem(JRN_KEY)) || []; } catch { return []; } }
+function saveJrn(e) { try { localStorage.setItem(JRN_KEY, JSON.stringify(e)); } catch(e) { console.warn('Journal storage error:', e); } }
+function loadProg() { try { return JSON.parse(localStorage.getItem(PROG_KEY)) || []; } catch { return []; } }
+function saveProg(d) { try { localStorage.setItem(PROG_KEY, JSON.stringify(d)); } catch(e) { console.warn('Progress storage error:', e); } }
+
+const saved = loadLS();
+// Migrate legacy Sindhi lang setting
+const _savedLang = saved.lang === 'sd' ? 'en' : (saved.lang || 'en');
+
+const ST = {
+  cur: 0, paused: false, sndType: 'off', sndOn: false,
+  dur: 10000, sessLen: 0, mode: 'seq', startMode: '0',
+  lang: _savedLang,
+  level: saved.level || 'all',
+  screen: 'meditate',
+  favs: new Set(saved.favs || []),
+  sessStart: null, ptrsHit: 0,
+  totalSess: saved.totalSess || 0,
+  totalMins: saved.totalMins || 0,
+  totalPtrs: saved.totalPtrs || 0,
+  advTimer: null, sessTimer: null, ctrlTimer: null, sessRemain: 0,
+  audio: null, ambNodes: null, ambGain: null, bowlTimer: null,
+  // Addressing (mood) mode
+  addrMode: false, addrPtrs: [], addrIdx: 0,
+  // Beginner task
+  taskIdx: 0,
+  // Progress rating (current session)
+  progRating: { depth: 0, thoughts: 0, peace: 0 },
+};
+
+function T() { return UI[ST.lang] || UI.en; }
+
+function persist() {
+  saveLS({
+    favs: [...ST.favs],
+    totalSess: ST.totalSess, totalMins: ST.totalMins, totalPtrs: ST.totalPtrs,
+    lang: ST.lang, level: ST.level, levelSet: true,
+  });
+}
+
+// ─── Pool filtering by level rank ───────────────────────────────
+function getPool() {
+  if (ST.level === 'all') return ALL;  // all levels in natural order
+  const rank = LEVEL_RANK[ST.level] ?? 1;
+  return ALL.filter(p => (LEVEL_RANK[p.minLevel] ?? 0) === rank);  // exact level only
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CANVAS — particle background
+// ═══════════════════════════════════════════════════════════════
+const cvs = document.getElementById('bg-canvas');
+const cx = cvs.getContext('2d');
+let pts = [], bgT = 0, bgRAF = null;
+
+function initPts() {
+  pts = [];
+  const n = Math.min(80, Math.floor(cvs.width * cvs.height / 8000));
+  for (let i = 0; i < n; i++) {
+    pts.push({
+      x: Math.random() * cvs.width, y: Math.random() * cvs.height,
+      r: Math.random() * 1.2 + 0.2,
+      dx: (Math.random() - 0.5) * 0.12, dy: (Math.random() - 0.5) * 0.08,
+      a: Math.random() * 0.15 + 0.03,
+      fl: Math.random() * Math.PI * 2, fs: Math.random() * 0.014 + 0.004,
+    });
+  }
+}
+function drawBg() {
+  bgT += 0.003;
+  cx.clearRect(0, 0, cvs.width, cvs.height);
+  const W = cvs.width, H = cvs.height;
+  const g = cx.createRadialGradient(W / 2, H / 2, 20, W / 2, H / 2, W * 0.68);
+  g.addColorStop(0, `rgba(5,28,52,${0.32 + Math.sin(bgT) * 0.05})`);
+  g.addColorStop(0.55, 'rgba(3,14,28,0.12)');
+  g.addColorStop(1, 'rgba(2,7,15,0)');
+  cx.fillStyle = g; cx.fillRect(0, 0, W, H);
+  pts.forEach(p => {
+    p.fl += p.fs;
+    cx.beginPath();
+    cx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    cx.fillStyle = `rgba(100,200,230,${p.a * (0.7 + Math.sin(p.fl) * 0.3)})`;
+    cx.fill();
+    p.x += p.dx; p.y += p.dy;
+    if (p.x < -5) p.x = W + 5; if (p.x > W + 5) p.x = -5;
+    if (p.y < -5) p.y = H + 5; if (p.y > H + 5) p.y = -5;
+  });
+  bgRAF = requestAnimationFrame(drawBg);
+}
+function resizeCvs() {
+  cvs.width = window.innerWidth;
+  cvs.height = window.innerHeight;
+  initPts();
+}
+window.addEventListener('resize', resizeCvs, { passive: true });
+resizeCvs(); drawBg();
+
+// ═══════════════════════════════════════════════════════════════
+// AUDIO ENGINE
+// ═══════════════════════════════════════════════════════════════
+function ensureAudio() {
+  if (!ST.audio) ST.audio = new (window.AudioContext || window.webkitAudioContext)();
+  if (ST.audio.state === 'suspended') ST.audio.resume();
+}
+function mkGain(v) {
+  const g = ST.audio.createGain();
+  g.gain.value = v;
+  g.connect(ST.audio.destination);
+  return g;
+}
+function bowl(mg) {
+  const sets = [[196,294,392,523],[174,261,348,440],[220,330,440,587],[261,392,523,698]];
+  const fs = sets[Math.floor(Math.random() * sets.length)];
+  fs.forEach((f, i) => {
+    setTimeout(() => {
+      try {
+        const o = ST.audio.createOscillator(), e = ST.audio.createGain();
+        o.type = 'sine'; o.frequency.value = f;
+        o.detune.value = (Math.random() - 0.5) * 8;
+        const n = ST.audio.currentTime;
+        e.gain.setValueAtTime(0, n);
+        e.gain.linearRampToValueAtTime(0.14, n + 0.28);
+        e.gain.exponentialRampToValueAtTime(0.0001, n + 10);
+        o.connect(e); e.connect(mg);
+        o.start(n); o.stop(n + 10);
+      } catch {}
+    }, i * 220);
+  });
+}
+function bell(mg) {
+  try {
+    const f = 392 + Math.random() * 200;
+    [1, 2.76, 5.4, 8.93].forEach((m, i) => {
+      const o = ST.audio.createOscillator(), e = ST.audio.createGain();
+      o.type = 'sine'; o.frequency.value = f * m;
+      const n = ST.audio.currentTime, v = 0.12 / Math.pow(i + 1, 0.8);
+      e.gain.setValueAtTime(0, n);
+      e.gain.linearRampToValueAtTime(v, n + 0.04);
+      e.gain.exponentialRampToValueAtTime(0.0001, n + 3.5);
+      o.connect(e); e.connect(mg);
+      o.start(n); o.stop(n + 3.5);
+    });
+  } catch {}
+}
+function startDrone() {
+  if (ST.ambNodes) return;
+  ST.ambGain = mkGain(0);
+  ST.ambNodes = [80, 80.22, 160.15, 240.3].map(f => {
+    const o = ST.audio.createOscillator();
+    o.type = 'sine'; o.frequency.value = f;
+    o.connect(ST.ambGain); o.start();
+    return o;
+  });
+  ST.ambGain.gain.setTargetAtTime(0.1, ST.audio.currentTime, 2);
+}
+function stopDrone() {
+  if (!ST.ambNodes) return;
+  ST.ambGain.gain.setTargetAtTime(0, ST.audio.currentTime, 0.8);
+  setTimeout(() => {
+    try { ST.ambNodes.forEach(o => o.stop()); } catch {}
+    ST.ambNodes = null; ST.ambGain = null;
+  }, 3000);
+}
+function applySnd() {
+  if (ST.bowlTimer) { clearInterval(ST.bowlTimer); ST.bowlTimer = null; }
+  stopDrone();
+  const btn = q('btn-sound'), lbl = q('sound-lbl');
+  if (!ST.sndOn) { btn.textContent = '🔇'; btn.classList.remove('on'); lbl.textContent = T().soundOff; return; }
+  ensureAudio(); btn.classList.add('on');
+  if (ST.sndType === 'bowls') {
+    btn.textContent = '🎵'; lbl.textContent = T().singingBowls;
+    const g = mkGain(0.65); bowl(g);
+    ST.bowlTimer = setInterval(() => { if (ST.sndOn) bowl(g); }, 14000);
+  } else if (ST.sndType === 'bells') {
+    btn.textContent = '🔔'; lbl.textContent = T().bells;
+    const g = mkGain(0.55); bell(g);
+    ST.bowlTimer = setInterval(() => { if (ST.sndOn) bell(g); }, 7000);
+  } else if (ST.sndType === 'drone') {
+    btn.textContent = '〜'; lbl.textContent = T().deepDrone;
+    startDrone();
+  } else {
+    btn.textContent = '🔇'; lbl.textContent = T().soundOff; btn.classList.remove('on');
+  }
+}
+function transitionSnd() { if (!ST.sndOn || !ST.audio) return; if (ST.sndType === 'bells') { const g = mkGain(0.3); bell(g); } }
+function completionSnd() { ensureAudio(); const g = mkGain(0.55); bowl(g); setTimeout(() => bowl(g), 2200); }
+
+// ═══════════════════════════════════════════════════════════════
+// VOICE NARRATION ENGINE
+// ═══════════════════════════════════════════════════════════════
+
+// Ordered preference list — first match found on device wins
+const VOICE_PREFS = [
+  'Google UK English Female',
+  'Google UK English Male',
+  'Google US English',
+  'Microsoft Sonia Online (Natural) - English (United Kingdom)',
+  'Microsoft Aria Online (Natural) - English (United States)',
+  'Microsoft Jenny Online (Natural) - English (United States)',
+  'Microsoft Zira - English (United States)',
+  'Microsoft David - English (United States)',
+  'Samantha',          // Apple macOS / iOS
+  'Daniel',            // Apple UK English
+  'Serena',            // Apple UK English (enhanced)
+  'Karen',             // Apple Australian
+  'Moira',             // Apple Irish
+  'Tessa',             // Apple South African
+];
+
+// Mode parameter presets
+const NARR_MODES = {
+  off:    null,
+  gentle: { rate: 0.72, pitch: 0.90, volume: 0.88 },
+  deep:   { rate: 0.63, pitch: 0.74, volume: 0.92 },
+  slow:   { rate: 0.50, pitch: 0.84, volume: 0.92 },
+};
+
+const VN = {
+  supported: typeof window !== 'undefined' && 'speechSynthesis' in window,
+  mode:      'off',          // 'off' | 'gentle' | 'deep' | 'slow'
+  voices:    [],             // available SpeechSynthesisVoice[]
+  voice:     null,           // chosen SpeechSynthesisVoice
+  voiceName: '',             // saved by name (voice objects don't persist)
+  speaking:  false,
+  pauseTimer: null,          // pre-speech delay handle
+};
+
+// ── Load / rank available voices ────────────────────────────────
+function vnLoadVoices() {
+  if (!VN.supported) return;
+  try {
+    const all = speechSynthesis.getVoices();
+    if (!all.length) return;                 // not ready yet
+    // Keep only voices with a usable lang, deduplicate by name
+    const seen = new Set();
+    VN.voices = all.filter(v => {
+      if (seen.has(v.name)) return false;
+      seen.add(v.name);
+      return true;
+    });
+    vnPickBestVoice();
+    vnPopulateSelect();
+  } catch (e) { /* silently ignore */ }
+}
+
+function vnPickBestVoice() {
+  if (!VN.voices.length) return;
+
+  // 1. Restore user-saved preference
+  if (VN.voiceName) {
+    const match = VN.voices.find(v => v.name === VN.voiceName);
+    if (match) { VN.voice = match; return; }
+  }
+
+  // 2. Try preferred list in order
+  for (const pref of VOICE_PREFS) {
+    const match = VN.voices.find(v => v.name.toLowerCase().includes(pref.toLowerCase()));
+    if (match) { VN.voice = match; return; }
+  }
+
+  // 3. Prefer any enhanced/natural English voice
+  const enhanced = VN.voices.find(v =>
+    v.lang.startsWith('en') && (v.name.includes('(Natural)') || v.name.includes('Enhanced') || v.localService === false)
+  );
+  if (enhanced) { VN.voice = enhanced; return; }
+
+  // 4. Fallback: any English voice
+  const anyEn = VN.voices.find(v => v.lang.startsWith('en'));
+  if (anyEn) { VN.voice = anyEn; return; }
+
+  // 5. Last resort: first available voice
+  VN.voice = VN.voices[0] || null;
+}
+
+// ── Populate the <select> in Settings ───────────────────────────
+function vnPopulateSelect() {
+  const sel = document.getElementById('voice-select');
+  if (!sel) return;
+  sel.innerHTML = '';
+  if (!VN.voices.length) {
+    const opt = document.createElement('option');
+    opt.textContent = T().voiceNoVoices;
+    sel.appendChild(opt);
+    return;
+  }
+  VN.voices.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v.name;
+    // Readable label: "Samantha (en-US) ★" if it's in preference list
+    const isPref = VOICE_PREFS.some(p => v.name.toLowerCase().includes(p.toLowerCase()));
+    opt.textContent = v.name + ' (' + v.lang + ')' + (isPref ? ' ★' : '');
+    if (VN.voice && v.name === VN.voice.name) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+// ── Stop any current speech immediately ─────────────────────────
+function vnStop() {
+  clearTimeout(VN.pauseTimer);
+  VN.pauseTimer = null;
+  if (!VN.supported) return;
+  try { speechSynthesis.cancel(); } catch {}
+  VN.speaking = false;
+  vnSetDot(false);
+}
+
+// ── Speak a text string ─────────────────────────────────────────
+function vnSpeak(text, preDelay = 1200) {
+  if (VN.mode === 'off' || !VN.supported || !VN.voice) return;
+  vnStop();   // cancel anything playing
+  const params = NARR_MODES[VN.mode];
+  if (!params) return;
+
+  VN.pauseTimer = setTimeout(() => {
+    VN.pauseTimer = null;
+    try {
+      // iOS Safari fix: resume context first
+      if (speechSynthesis.paused) speechSynthesis.resume();
+
+      const utt = new SpeechSynthesisUtterance(text);
+      utt.voice  = VN.voice;
+      utt.rate   = params.rate;
+      utt.pitch  = params.pitch;
+      utt.volume = params.volume;
+      utt.lang   = VN.voice.lang || 'en-US';
+
+      utt.onstart = () => { VN.speaking = true; vnSetDot(true); };
+      utt.onend   = () => { VN.speaking = false; vnSetDot(false); };
+      utt.onerror = () => { VN.speaking = false; vnSetDot(false); };
+
+      speechSynthesis.speak(utt);
+
+      // Chrome desktop bug: speech sometimes silently stops after ~15 s
+      // Keep alive by re-checking every 10 s; when done, drive auto-advance
+      vnKeepAlive(utt, () => {
+        // Narration-driven advance with level-aware post-speech pause.
+        // Clear the fallback timer first so it doesn't double-fire with speech.
+        if (VN.mode !== 'off' && !ST.paused && ST.mode !== 'man' && !ST.addrMode) {
+          clearTimeout(ST.advTimer); clearInterval(ST.advTimer);
+          // Determine effective level (for "all" mode, use current pointer's level)
+          const pool = getPool();
+          const curPtr = pool[ST.cur % pool.length];
+          const effectiveLevel = ST.level === 'all' ? (curPtr ? curPtr.minLevel : 'beginner') : ST.level;
+          // Post-speech pause: Beginner ~10s (total ~15-20s), Seeker ~22s (total ~30s), Advanced/Sahaja ~32s (total ~40s)
+          const pauseMs = (effectiveLevel === 'advanced' || effectiveLevel === 'sahaja') ? 32000
+                        : effectiveLevel === 'seeker' ? 22000 : 10000;
+          ST.advTimer = setTimeout(() => { if (!ST.paused && VN.mode !== 'off') next(); }, pauseMs);
+        }
+      });
+    } catch (e) { VN.speaking = false; vnSetDot(false); }
+  }, preDelay);
+}
+
+// Chrome keep-alive patch — accepts optional afterFn for narration-driven advance
+function vnKeepAlive(utt, afterFn) {
+  const interval = setInterval(() => {
+    if (!VN.speaking) { clearInterval(interval); return; }
+    try { speechSynthesis.pause(); speechSynthesis.resume(); } catch {}
+  }, 10000);
+  utt.onend = () => {
+    VN.speaking = false; vnSetDot(false); clearInterval(interval);
+    if (afterFn) afterFn();
+  };
+  utt.onerror = () => { VN.speaking = false; vnSetDot(false); clearInterval(interval); };
+}
+
+function vnSetDot(on) {
+  const dot = document.getElementById('voice-dot');
+  if (dot) dot.classList.toggle('on', on);
+}
+
+// ── Build compat note for current platform ──────────────────────
+function vnUpdateCompatNote() {
+  const note = document.getElementById('voice-compat-note');
+  if (!note) return;
+  if (!VN.supported) {
+    note.textContent = T().voiceNoSupport;
+    note.className = 'voice-compat-note warn';
+    return;
+  }
+  if (!VN.voices.length) {
+    note.textContent = T().voiceAndroidNote;
+    note.className = 'voice-compat-note';
+    return;
+  }
+  // Detect iOS
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  if (isIOS) {
+    note.textContent = T().voiceIosNote;
+    note.className = 'voice-compat-note';
+  } else {
+    note.textContent = '';
+    note.className = 'voice-compat-note';
+  }
+}
+
+// ── iOS: fire silent utterance inside user gesture to unlock speech synthesis ──
+function vnUnlockIOS() {
+  if (!VN.supported) return;
+  try {
+    const utt = new SpeechSynthesisUtterance('​'); // zero-width space — silent
+    utt.volume = 0.01; utt.rate = 1;
+    if (VN.voice) utt.voice = VN.voice;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(utt);
+    VN.iosUnlocked = true;
+  } catch {}
+}
+
+// ── Shared mode setter — keeps both chip sets in sync ───────────
+function vnSetMode(mode) {
+  VN.mode = mode;
+  vnStop();
+  if (mode !== 'off') abStop(); // cross-stop: narration on → halt mantra
+  if (mode !== 'off') {
+    // iOS requires speech inside a user gesture — this chip tap IS one.
+    // Fire silent utterance to prime iOS audio context.
+    vnUnlockIOS();
+    // Stop any existing timer — narration drives advance now.
+    clearInterval(ST.advTimer); clearTimeout(ST.advTimer);
+    // Speak the current pointer immediately so narration-driven advance starts.
+    // Delay 900ms: allows iOS unlock to settle before real speech begins.
+    setTimeout(() => {
+      if (VN.mode !== 'off' && !ST.addrMode && !ST.paused) {
+        const pool = getPool();
+        const ptr = pool[ST.cur % pool.length];
+        if (ptr) {
+          const txt = (ptr.text && (ptr.text[ST.lang] || ptr.text.en)) || '';
+          if (txt) vnSpeak(txt, 0); // preDelay=0 since we already waited 900ms
+        }
+      }
+    }, 900);
+  }
+  toggleVoiceControls(mode !== 'off');
+  vnUpdateCompatNote();
+  // Sync settings chips
+  document.querySelectorAll('#narr-chips .chip').forEach(c => c.classList.toggle('on', c.dataset.v === mode));
+  // Sync mini chips on meditate screen
+  document.querySelectorAll('#voice-mini-row .vmini').forEach(c => c.classList.toggle('on', c.dataset.vm === mode));
+  // Show/hide Speak Now button
+  const spkBtn = document.getElementById('btn-speak-now');
+  if (spkBtn) spkBtn.classList.toggle('visible', mode !== 'off');
+  // Persist
+  const s2 = loadLS(); s2.narrMode = mode; saveLS(s2);
+}
+
+// ── Initialise narration system ──────────────────────────────────
+function vnInit() {
+  if (!VN.supported) {
+    // Grey out mode chips
+    document.querySelectorAll('#narr-chips .chip:not([data-v="off"])').forEach(c => {
+      c.style.opacity = '.35'; c.style.pointerEvents = 'none';
+    });
+    return;
+  }
+
+  // Restore saved state
+  const s = loadLS();
+  if (s.narrMode) VN.mode = s.narrMode;
+  if (s.voiceName) VN.voiceName = s.voiceName;
+
+  // Sync both chip sets to restored mode
+  document.querySelectorAll('#narr-chips .chip').forEach(c => c.classList.toggle('on', c.dataset.v === VN.mode));
+  document.querySelectorAll('#voice-mini-row .vmini').forEach(c => c.classList.toggle('on', c.dataset.vm === VN.mode));
+  toggleVoiceControls(VN.mode !== 'off');
+  // Sync Speak Now button visibility
+  const _spkBtn = document.getElementById('btn-speak-now');
+  if (_spkBtn) _spkBtn.classList.toggle('visible', VN.mode !== 'off');
+
+  // Load voices — may be async on Chrome
+  vnLoadVoices();
+  if (speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = () => {
+      vnLoadVoices();
+      vnUpdateCompatNote();
+    };
+  }
+
+  // Settings chip handler
+  document.querySelectorAll('#narr-chips .chip').forEach(c => {
+    c.addEventListener('click', () => vnSetMode(c.dataset.v));
+  });
+
+  // Mini chip handler (meditate screen)
+  document.querySelectorAll('#voice-mini-row .vmini').forEach(c => {
+    c.addEventListener('click', () => vnSetMode(c.dataset.vm));
+  });
+
+  // Speak Now button — iOS unlock + immediate narration of current pointer
+  const spkNow = document.getElementById('btn-speak-now');
+  if (spkNow) {
+    spkNow.addEventListener('click', () => {
+      // This tap IS a user gesture — safe to call speech here on iOS
+      vnUnlockIOS();
+      // Stop any current speech, then speak the current pointer
+      vnStop();
+      const pool = getPool();
+      if (!pool.length) return;
+      const ptr = pool[ST.cur % pool.length];
+      if (!ptr) return;
+      const lang = ST.lang || 'en';
+      const txt = ptr.text[lang] || ptr.text['en'] || '';
+      if (!txt) return;
+      const utt = new SpeechSynthesisUtterance(txt);
+      const cfg = NARR_MODES[VN.mode] || NARR_MODES.gentle;
+      utt.rate   = cfg.rate;
+      utt.pitch  = cfg.pitch;
+      utt.volume = cfg.volume;
+      if (VN.voice) utt.voice = VN.voice;
+      utt.lang = ptr.lang || 'en-US';
+      VN.utt = utt;
+      speechSynthesis.cancel();
+      speechSynthesis.speak(utt);
+    });
+  }
+
+  // Voice select handler
+  const sel = document.getElementById('voice-select');
+  if (sel) {
+    sel.addEventListener('change', () => {
+      const chosen = VN.voices.find(v => v.name === sel.value);
+      if (chosen) {
+        VN.voice = chosen;
+        VN.voiceName = chosen.name;
+        const s2 = loadLS(); s2.voiceName = VN.voiceName; saveLS(s2);
+        vnStop();
+      }
+    });
+  }
+
+  // Test voice button
+  const testBtn = document.getElementById('voice-test');
+  if (testBtn) {
+    testBtn.addEventListener('click', () => {
+      // iOS requires speech to start inside a user gesture — this IS one
+      if (!VN.voice) vnPickBestVoice();
+      if (!VN.voice) return;
+      const sample = 'Who is here, before the word I arises?';
+      vnStop();
+      testBtn.classList.add('testing');
+      const utt = new SpeechSynthesisUtterance(sample);
+      const params = NARR_MODES[VN.mode] || NARR_MODES.gentle;
+      utt.voice = VN.voice; utt.rate = params.rate;
+      utt.pitch = params.pitch; utt.volume = params.volume;
+      utt.onend = () => testBtn.classList.remove('testing');
+      utt.onerror = () => testBtn.classList.remove('testing');
+      try { speechSynthesis.cancel(); speechSynthesis.speak(utt); } catch {}
+    });
+  }
+
+  // Page visibility — stop speech when user backgrounds the app
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) vnStop();
+  });
+
+  vnUpdateCompatNote();
+}
+
+function toggleVoiceControls(show) {
+  const vc = document.getElementById('voice-controls');
+  if (vc) vc.style.display = show ? '' : 'none';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+function q(id) { return document.getElementById(id); }
+
+function arcStart() {
+  const el = q('arc-fill');
+  el.style.setProperty('--dur', ST.dur + 'ms');
+  el.classList.remove('running'); void el.offsetWidth;
+  el.classList.add('running');
+  el.style.animationPlayState = 'running';
+}
+function arcPause() { q('arc-fill').style.animationPlayState = 'paused'; }
+function arcReset() {
+  const el = q('arc-fill');
+  el.classList.remove('running'); void el.offsetWidth;
+  el.style.strokeDashoffset = '477.52';
+}
+
+function buildDots() {
+  const pool = getPool(), el = q('dots');
+  el.innerHTML = '';
+  // Hide dots when pool is too large — counter text already shows position
+  if (pool.length > 18) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  pool.forEach((p, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === ST.cur ? ' active' : '') + (p.isFirst && i > 0 ? ' grp' : '');
+    d.title = p.group[ST.lang] || p.group.en;
+    d.setAttribute('role', 'button');
+    d.setAttribute('aria-label', `Go to pointer ${i + 1}`);
+    d.addEventListener('click', () => goTo(i));
+    el.appendChild(d);
+  });
+}
+function syncDots() {
+  q('dots').querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === ST.cur));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// POINTER DISPLAY
+// ═══════════════════════════════════════════════════════════════
+function showPtr(instant = false) {
+  const pool = getPool();
+  const p = ST.addrMode ? ST.addrPtrs[ST.addrIdx] : pool[ST.cur % pool.length];
+  if (!p) return;
+  const ptEl = q('ptr-text'), pgEl = q('ptr-grp'), pcEl = q('ptr-count');
+  const lang = ST.lang;
+
+  function apply() {
+    // MOOD_PTRS use direct p[lang]; regular pointers use p.text[lang]
+    const txt = ST.addrMode ? (p[lang] || p.en) : (p.text[lang] || p.text.en);
+    ptEl.textContent = '”' + txt + '”';
+    // Adaptive font: shrink for long pointers so text never overflows
+    const cl = txt.length;
+    ptEl.style.fontSize = cl > 160 ? 'clamp(0.78rem,2.4vw,1.05rem)'
+                        : cl > 110 ? 'clamp(0.86rem,2.7vw,1.2rem)'
+                        : cl > 75  ? 'clamp(0.94rem,3.0vw,1.38rem)'
+                        : '';
+
+    if (ST.addrMode) {
+      pgEl.textContent = T().addrBadge;
+      pcEl.textContent = (ST.addrIdx + 1) + ' · ' + ST.addrPtrs.length;
+    } else {
+      pgEl.textContent = p.group[lang] || p.group.en;
+      pcEl.textContent = (ST.cur + 1) + ' · ' + pool.length;
+      const lev = LEVELS.find(l => l.key === ST.level) || LEVELS[1];
+      const gi = p.gi;
+      // Count accessible groups for current level
+      const rank = LEVEL_RANK[ST.level] ?? 1;
+      const accGroups = GROUPS.map((g, i) => i).filter(i => (LEVEL_RANK[GROUPS[i].minLevel] ?? 0) <= rank);
+      const gn = accGroups.indexOf(gi) + 1;
+      const gc = accGroups.length;
+      q('hdr-group').textContent = T().group + ' ' + gn + ' ' + T().of + ' ' + gc;
+    }
+    const isFav = ST.favs.has(ST.cur);
+    q('btn-fav').textContent = isFav ? '♥' : '♡';
+    q('btn-fav').classList.toggle('on', isFav);
+    q('btn-fav').setAttribute('aria-label', isFav ? 'Remove from saved' : 'Save pointer');
+    syncDots();
+    vnSpeak(txt);  // speak after text is set
+  }
+
+  if (instant) {
+    apply();
+    ptEl.classList.add('on'); pgEl.classList.add('on'); pcEl.classList.add('on');
+    return;
+  }
+  // iOS Safari: CSS transitions (1.8s opacity) are unreliable to override with inline style.
+  // Fix: force opacity:0 via inline style (always wins over CSS, no animation)
+  // then use double-rAF to ensure iOS GPU has actually painted the invisible frame
+  // before content changes + fade-in begins.
+  ptEl.style.transition = 'none'; ptEl.style.opacity = '0';
+  pgEl.style.transition = 'none'; pgEl.style.opacity = '0';
+  pcEl.style.transition = 'none'; pcEl.style.opacity = '0';
+  ptEl.classList.remove('on'); pgEl.classList.remove('on'); pcEl.classList.remove('on');
+
+  requestAnimationFrame(() => {        // frame 1: iOS renders invisible state
+    requestAnimationFrame(() => {      // frame 2: safe to swap content + re-enable CSS
+      apply();
+      ptEl.style.transition = ''; pgEl.style.transition = ''; pcEl.style.transition = '';
+      ptEl.style.opacity = '';    pgEl.style.opacity = '';    pcEl.style.opacity = '';
+      ptEl.classList.add('on');   pgEl.classList.add('on');   pcEl.classList.add('on');
+      ST.ptrsHit++;
+      transitionSnd();
+      if (!ST.paused && ST.mode !== 'man' && VN.mode === 'off') arcStart();
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ADDRESSING (MOOD) MODE
+// ═══════════════════════════════════════════════════════════════
+function nextAddr() {
+  ST.addrIdx++;
+  if (ST.addrIdx >= ST.addrPtrs.length) { endAddressing(); return; }
+  arcReset(); showPtr(); arcStart();
+}
+function startAddressing(moodKey) {
+  const ptrs = MOOD_PTRS[moodKey] || [];
+  if (!ptrs.length) return;
+  ST.addrMode = true; ST.addrPtrs = ptrs; ST.addrIdx = 0;
+  q('addr-badge').textContent = T().addrBadge;
+  q('addr-badge').classList.add('on');
+  q('arc-fill').classList.add('warm');
+  clearInterval(ST.advTimer);
+  arcReset(); showPtr();
+  const holdMs = Math.max(ST.dur, 15000);
+  arcStart();
+  ST.advTimer = setInterval(() => nextAddr(), holdMs);
+}
+function endAddressing() {
+  ST.addrMode = false; ST.addrPtrs = []; ST.addrIdx = 0;
+  q('addr-badge').classList.remove('on');
+  q('arc-fill').classList.remove('warm');
+  arcReset(); showPtr(); resetAdv();
+  if (!ST.paused && ST.mode !== 'man') arcStart();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SESSION CONTROLS
+// ═══════════════════════════════════════════════════════════════
+function next() {
+  if (ST.addrMode) { nextAddr(); return; }
+  const pool = getPool();
+  if (ST.mode === 'rand') ST.cur = Math.floor(Math.random() * pool.length);
+  else ST.cur = (ST.cur + 1) % pool.length;
+  showPtr();
+}
+function resetAdv() {
+  clearInterval(ST.advTimer);
+  clearTimeout(ST.advTimer);
+  if (ST.paused || ST.mode === 'man') return;
+  // Always run the fallback timer regardless of narration mode.
+  // If narration works, its onend handler clears this timer and takes over.
+  // If speech silently fails (iOS, no voice, network) the timer still advances.
+  ST.advTimer = setInterval(next, ST.dur);
+}
+function goTo(idx) {
+  const pool = getPool();
+  ST.cur = ((idx % pool.length) + pool.length) % pool.length;
+  arcReset(); showPtr(); resetAdv();
+  if (!ST.paused && ST.mode !== 'man') arcStart();
+}
+function showCtrl() {
+  q('controls').style.opacity = '1'; q('dots').style.opacity = '1'; q('sound-lbl').style.opacity = '1';
+  if (ST.ctrlTimer) clearTimeout(ST.ctrlTimer);
+  ST.ctrlTimer = setTimeout(() => {
+    if (!ST.paused) {
+      q('controls').style.opacity = '.3'; q('dots').style.opacity = '.25'; q('sound-lbl').style.opacity = '.25';
+    }
+  }, 4500);
+}
+
+function fmtTime(s) {
+  return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+}
+function startSessTimer() {
+  clearInterval(ST.sessTimer);
+  if (ST.sessLen <= 0) { q('hdr-clock').classList.remove('on'); return; }
+  ST.sessRemain = ST.sessLen;
+  q('hdr-clock').textContent = fmtTime(ST.sessRemain);
+  q('hdr-clock').classList.add('on');
+  ST.sessTimer = setInterval(() => {
+    ST.sessRemain--;
+    q('hdr-clock').textContent = fmtTime(ST.sessRemain);
+    if (ST.sessRemain <= 0) { clearInterval(ST.sessTimer); endSess(); }
+  }, 1000);
+}
+
+function endSess() {
+  clearInterval(ST.advTimer);
+  arcReset();
+  const mins = Math.round((Date.now() - (ST.sessStart || Date.now())) / 60000) || 1;
+  ST.totalSess++; ST.totalMins += mins; ST.totalPtrs += ST.ptrsHit;
+  persist(); refreshStats(); completionSnd();
+  q('cmp-mins').textContent = mins;
+  q('cmp-ptrs').textContent = ST.ptrsHit;
+  q('cmp-favs').textContent = ST.favs.size;
+  q('cmp-sub').textContent = T().cmpSub;
+  ST.progRating = { depth: 0, thoughts: 0, peace: 0 };
+  buildProgRatingUI();
+  q('complete').classList.add('on');
+}
+
+function refreshStats() {
+  q('st-sessions').textContent = ST.totalSess;
+  q('st-mins').textContent = ST.totalMins;
+  q('st-ptrs').textContent = ST.totalPtrs;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROGRESS TRACKING
+// ═══════════════════════════════════════════════════════════════
+function buildProgRatingUI() {
+  const t = T();
+  const el = q('prog-rating-ui');
+  el.innerHTML = '';
+  const rows = [
+    { key: 'depth',    label: t.progDepth },
+    { key: 'thoughts', label: t.progThoughts },
+    { key: 'peace',    label: t.progPeace },
+  ];
+  rows.forEach(row => {
+    const div = document.createElement('div');
+    div.className = 'prog-row';
+    const lbl = document.createElement('div');
+    lbl.className = 'prog-lbl';
+    lbl.textContent = row.label;
+    const stars = document.createElement('div');
+    stars.className = 'prog-stars';
+    for (let i = 1; i <= 5; i++) {
+      const s = document.createElement('div');
+      s.className = 'prog-star' + (i <= ST.progRating[row.key] ? ' on' : '');
+      s.textContent = '★';
+      s.setAttribute('role', 'button');
+      s.setAttribute('aria-label', `Rate ${row.label} ${i} out of 5`);
+      s.addEventListener('click', () => {
+        ST.progRating[row.key] = i;
+        stars.querySelectorAll('.prog-star').forEach((st, si) => st.classList.toggle('on', si < i));
+      });
+      stars.appendChild(s);
+    }
+    div.appendChild(lbl); div.appendChild(stars);
+    el.appendChild(div);
+  });
+}
+
+function saveProgEntry(mins, ptrs) {
+  const arr = loadProg();
+  arr.push({
+    ts: Date.now(),
+    depth: ST.progRating.depth,
+    thoughts: ST.progRating.thoughts,
+    peace: ST.progRating.peace,
+    mins, ptrs,
+  });
+  // Keep last 90 entries
+  if (arr.length > 90) arr.splice(0, arr.length - 90);
+  saveProg(arr);
+}
+
+function renderProgressDisplay() {
+  const arr = loadProg();
+  const el = q('progress-display');
+  const grp = q('progress-grp');
+  if (!el) return;
+  if (!arr.length) {
+    grp.style.display = 'none';
+    return;
+  }
+  grp.style.display = '';
+  const t = T();
+  // Last 7 days
+  const cutoff = Date.now() - 7 * 24 * 3600000;
+  const recent = arr.filter(e => e.ts >= cutoff);
+  if (!recent.length) { grp.style.display = 'none'; return; }
+  const avg = k => Math.round((recent.reduce((s, e) => s + (e[k] || 0), 0) / recent.length) * 10) / 10;
+  const bars = [
+    { key: 'depth',    label: t.progDepth,    val: avg('depth') },
+    { key: 'thoughts', label: t.progThoughts, val: avg('thoughts') },
+    { key: 'peace',    label: t.progPeace,    val: avg('peace') },
+  ];
+  el.innerHTML = '';
+  bars.forEach(b => {
+    const row = document.createElement('div');
+    row.className = 'prog-chart-row';
+    const pct = Math.round((b.val / 5) * 100);
+    row.innerHTML = `<div class="prog-chart-lbl">${b.label}</div>
+      <div class="prog-bar-track"><div class="prog-bar-fill" style="width:${pct}%"></div></div>
+      <div class="prog-bar-val">${b.val || '—'}</div>`;
+    el.appendChild(row);
+  });
+  // Mini sparkline for peace (last 7 entries)
+  const last7 = arr.slice(-7);
+  if (last7.length > 1) {
+    const sparkRow = document.createElement('div');
+    sparkRow.style.cssText = 'display:flex;align-items:flex-end;gap:3px;height:28px;margin-top:.7rem';
+    last7.forEach(e => {
+      const bar = document.createElement('div');
+      const h = Math.max(4, Math.round(((e.peace || 0) / 5) * 100));
+      bar.className = 'prog-dot';
+      bar.style.height = h + '%';
+      bar.title = new Date(e.ts).toLocaleDateString();
+      sparkRow.appendChild(bar);
+    });
+    el.appendChild(sparkRow);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BREATH TIMER
+// ═══════════════════════════════════════════════════════════════
+const BREATH = [
+  { key: 'inhale', dur: 4 }, { key: 'hold', dur: 4 },
+  { key: 'exhale', dur: 6 }, { key: 'rest', dur: 2 },
+];
+let bIdx = 0, bTimer = null, bCountTimer = null, bCycle = 0;
+
+function startBreath() {
+  q('breath-overlay').classList.add('on');
+  q('btn-breath').classList.add('on');
+  bIdx = 0; bCycle = 1; runBreath();
+}
+function stopBreath() {
+  q('breath-overlay').classList.remove('on');
+  q('btn-breath').classList.remove('on');
+  clearTimeout(bTimer); clearInterval(bCountTimer);
+}
+function runBreath() {
+  const ph = BREATH[bIdx % BREATH.length];
+  const inner = q('breath-inner'), ring = q('breath-ring');
+  const isIn = ph.key === 'inhale' || ph.key === 'hold';
+  const scale = isIn ? 1.4 : 0.85;
+  const glow = isIn ? '0 0 80px rgba(77,184,212,.5)' : '0 0 20px rgba(77,184,212,.15)';
+  const dur = ph.dur * 1000;
+  inner.style.transition = `transform ${dur}ms ease-in-out,box-shadow ${dur}ms ease-in-out`;
+  ring.style.transition = `transform ${dur}ms ease-in-out`;
+  inner.style.transform = `scale(${scale})`;
+  ring.style.transform = `scale(${scale * 0.95})`;
+  inner.style.boxShadow = glow;
+  q('breath-phase').textContent = T()[ph.key] || ph.key.toUpperCase();
+  q('breath-cycles-lbl').textContent = T().breathCycles.replace('{n}', bCycle);
+  let c = ph.dur;
+  q('breath-count').textContent = c;
+  clearInterval(bCountTimer);
+  bCountTimer = setInterval(() => { c--; q('breath-count').textContent = Math.max(0, c); }, 1000);
+  clearTimeout(bTimer);
+  bTimer = setTimeout(() => {
+    bIdx++;
+    if (bIdx % BREATH.length === 0) bCycle++;
+    runBreath();
+  }, dur);
+}
+q('breath-close').addEventListener('click', stopBreath);
+q('btn-breath').addEventListener('click', startBreath);
+
+// ═══════════════════════════════════════════════════════════════
+// MOOD PANEL
+// ═══════════════════════════════════════════════════════════════
+function buildMoodGrid() {
+  const grid = q('mood-grid');
+  grid.innerHTML = '';
+  MOODS.forEach(m => {
+    const t = document.createElement('div');
+    t.className = 'mood-tile';
+    t.setAttribute('role', 'button');
+    t.setAttribute('aria-label', m.label[ST.lang] || m.label.en);
+    t.innerHTML = `<div class="mood-tile-icon" aria-hidden="true">${m.icon}</div>
+      <div class="mood-tile-lbl">${m.label[ST.lang] || m.label.en}</div>`;
+    t.addEventListener('click', () => {
+      q('mood-panel').classList.remove('on');
+      q('btn-mood').classList.remove('on');
+      q('btn-mood').setAttribute('aria-expanded', 'false');
+      if (m.key !== 'peace' && m.key !== 'neutral') startAddressing(m.key);
+    });
+    grid.appendChild(t);
+  });
+}
+q('btn-mood').addEventListener('click', () => {
+  buildMoodGrid();
+  q('mood-panel').classList.add('on');
+  q('btn-mood').classList.add('on');
+  q('btn-mood').setAttribute('aria-expanded', 'true');
+});
+q('mood-skip').addEventListener('click', () => {
+  q('mood-panel').classList.remove('on');
+  q('btn-mood').classList.remove('on');
+  q('btn-mood').setAttribute('aria-expanded', 'false');
+});
+
+// ═══════════════════════════════════════════════════════════════
+// BEGINNER TASKS
+// ═══════════════════════════════════════════════════════════════
+function showBeginnerTask() {
+  if (ST.level !== 'beginner') return;
+  ST.taskIdx = 0;
+  showNextTask();
+}
+function showNextTask() {
+  if (ST.taskIdx >= BEGINNER_TASKS.length) {
+    q('task-card').classList.remove('on');
+    startMeditating();
+    return;
+  }
+  const t = BEGINNER_TASKS[ST.taskIdx];
+  q('task-badge').textContent = T().taskBadge.replace('{a}', ST.taskIdx + 1).replace('{b}', BEGINNER_TASKS.length);
+  q('task-text').textContent = t[ST.lang] || t.en;
+  q('task-next').textContent = T().taskContinue;
+  q('task-skip').textContent = T().taskSkip;
+  q('task-card').classList.add('on');
+}
+function startMeditating() {
+  q('task-card').classList.remove('on');
+  ST.sessStart = Date.now();
+  showPtr(true);   // always show current pointer immediately — no blank screen
+  resetAdv();
+  if (!ST.paused && ST.mode !== 'man' && VN.mode === 'off') arcStart();
+  showCtrl();
+}
+q('task-next').addEventListener('click', () => { ST.taskIdx++; showNextTask(); });
+q('task-skip').addEventListener('click', () => { q('task-card').classList.remove('on'); startMeditating(); });
+
+// ═══════════════════════════════════════════════════════════════
+// ONBOARDING
+// ═══════════════════════════════════════════════════════════════
+function buildOnboard() {
+  const cards = q('ob-cards');
+  cards.innerHTML = '';
+  LEVELS.forEach(lev => {
+    const c = document.createElement('div');
+    c.className = 'ob-card';
+    c.setAttribute('role', 'button');
+    c.setAttribute('aria-label', lev.label[ST.lang] || lev.label.en);
+    c.innerHTML = `<div class="ob-icon" aria-hidden="true">${lev.icon}</div>
+      <div><div class="ob-name">${lev.label[ST.lang] || lev.label.en}</div>
+      <div class="ob-desc">${lev.desc[ST.lang] || lev.desc.en}</div></div>`;
+    c.addEventListener('click', () => {
+      ST.level = lev.key;
+      persist();
+      q('onboard').classList.remove('on');
+      setActiveChip('lang-chips', ST.lang);
+      refreshLevelCards();
+      startMeditating();
+    });
+    cards.appendChild(c);
+  });
+}
+
+function refreshLevelStrip() {
+  const strip = q('lvl-strip');
+  if (!strip) return;
+  strip.innerHTML = '';
+  // Row 1: All, Beginner, Seeker (indices 0-2)  Row 2: Advanced, Natural State (indices 3-4)
+  LEVELS.forEach((lev, i) => {
+    // Insert line-break element after 3rd pill → forces Row 2 to new line
+    if (i === 3) {
+      const br = document.createElement('div');
+      br.className = 'lvl-strip-break';
+      strip.appendChild(br);
+    }
+    const p = document.createElement('button');
+    p.className = 'lvl-pill' + (ST.level === lev.key ? ' on' : '');
+    p.setAttribute('aria-pressed', ST.level === lev.key ? 'true' : 'false');
+    p.innerHTML = `<span class="lp-icon" aria-hidden="true">${lev.icon}</span><span>${lev.label[ST.lang] || lev.label.en}</span>`;
+    p.addEventListener('click', () => {
+      ST.level = lev.key; persist();
+      ST.cur = 0;
+      refreshLevelStrip(); refreshLevelCards();
+      buildDots(); arcReset();
+      journeyBuilt = false; q('groups-list').innerHTML = '';
+      startMeditating();  // handles showPtr, resetAdv, arcStart cleanly
+    });
+    strip.appendChild(p);
+  });
+}
+
+function refreshLevelCards() {
+  const row = q('level-row');
+  row.innerHTML = '';
+  LEVELS.forEach(lev => {
+    const c = document.createElement('div');
+    c.className = 'lvl-card' + (ST.level === lev.key ? ' on' : '');
+    c.setAttribute('role', 'button');
+    c.setAttribute('aria-pressed', ST.level === lev.key ? 'true' : 'false');
+    c.innerHTML = `<div class="lvl-icon" aria-hidden="true">${lev.icon}</div>
+      <div><div class="lvl-name">${lev.label[ST.lang] || lev.label.en}</div>
+      <div class="lvl-desc">${lev.desc[ST.lang] || lev.desc.en}</div></div>`;
+    c.addEventListener('click', () => {
+      ST.level = lev.key;
+      persist();
+      ST.cur = 0;
+      refreshLevelCards(); refreshLevelStrip();
+      buildDots(); arcReset();
+      journeyBuilt = false;
+      q('groups-list').innerHTML = '';
+      const pc = q('prep-card');
+      if (pc) pc.style.display = ST.level === 'beginner' ? '' : 'none';
+      startMeditating();  // handles showPtr, resetAdv, arcStart cleanly
+    });
+    row.appendChild(c);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SESSION CONTROL BUTTONS
+// ═══════════════════════════════════════════════════════════════
+q('btn-prev').addEventListener('click', () => {
+  if (ST.addrMode) {
+    if (ST.addrIdx > 0) { ST.addrIdx--; arcReset(); showPtr(); arcStart(); }
+  } else { goTo(ST.cur - 1); }
+});
+q('btn-next').addEventListener('click', () => {
+  if (ST.addrMode) nextAddr(); else goTo(ST.cur + 1);
+});
+q('btn-pause').addEventListener('click', () => {
+  if (ST.mode === 'man') return;
+  ST.paused = !ST.paused;
+  q('btn-pause').textContent = ST.paused ? '▶' : '⏸';
+  q('btn-pause').setAttribute('aria-label', ST.paused ? 'Resume session' : 'Pause session');
+  if (ST.paused) {
+    clearInterval(ST.advTimer); arcPause(); vnStop();
+    q('controls').style.opacity = '1'; q('dots').style.opacity = '1'; q('sound-lbl').style.opacity = '1';
+  } else { resetAdv(); arcStart(); showCtrl(); }
+});
+q('btn-sound').addEventListener('click', () => {
+  ensureAudio();
+  ST.sndOn = !ST.sndOn;
+  if (ST.sndOn && ST.sndType === 'off') { ST.sndType = 'bowls'; setActiveChip('snd-chips', 'bowls'); }
+  applySnd();
+});
+q('btn-fav').addEventListener('click', () => {
+  const i = ST.cur;
+  if (ST.favs.has(i)) {
+    ST.favs.delete(i); q('btn-fav').textContent = '♡'; q('btn-fav').classList.remove('on');
+  } else {
+    ST.favs.add(i); q('btn-fav').textContent = '♥'; q('btn-fav').classList.add('on');
+  }
+  persist(); renderFavs();
+});
+q('btn-continue').addEventListener('click', () => {
+  // Save progress entry
+  const mins = parseInt(q('cmp-mins').textContent) || 1;
+  const ptrs = parseInt(q('cmp-ptrs').textContent) || 0;
+  if (ST.progRating.depth || ST.progRating.thoughts || ST.progRating.peace) {
+    saveProgEntry(mins, ptrs);
+    renderProgressDisplay();
+  }
+  q('complete').classList.remove('on');
+  ST.ptrsHit = 0; ST.sessStart = Date.now();
+  startSessTimer(); resetAdv();
+  if (!ST.paused && ST.mode !== 'man') arcStart();
+});
+
+// ═══════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+function showScreen(name) {
+  vnStop();        // stop pointer narration on any tab/screen change
+  abStop();        // stop mantra chant on any tab/screen change
+  ST.screen = name;
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => {
+    t.classList.remove('on');
+    t.setAttribute('aria-pressed', 'false');
+  });
+  q('s-' + name).classList.add('active');
+  const tab = document.querySelector(`.nav-tab[data-s="${name}"]`);
+  if (tab) { tab.classList.add('on'); tab.setAttribute('aria-pressed', 'true'); }
+  if (name === 'journey') renderJourney();
+  if (name === 'journal') renderJournal();
+  if (name === 'settings') renderProgressDisplay();
+}
+document.querySelectorAll('.nav-tab').forEach(b => {
+  b.addEventListener('click', () => showScreen(b.dataset.s));
+});
+
+// Click meditate screen to show controls
+q('s-meditate').addEventListener('click', showCtrl);
+q('s-meditate').addEventListener('touchstart', showCtrl, { passive: true });
+
+// ═══════════════════════════════════════════════════════════════
+// JOURNEY TAB
+// ═══════════════════════════════════════════════════════════════
+function renderFavs() {
+  const band = q('favs-band'), chips = q('fav-chips');
+  chips.innerHTML = '';
+  if (!ST.favs.size) { band.style.display = 'none'; return; }
+  band.style.display = '';
+  ST.favs.forEach(idx => {
+    const p = ALL[idx];
+    if (!p) return;
+    const c = document.createElement('span');
+    c.className = 'fav-chip';
+    c.textContent = '“' + (p.text[ST.lang] || p.text.en) + '”';
+    c.addEventListener('click', () => { goTo(idx); showScreen('meditate'); });
+    chips.appendChild(c);
+  });
+}
+
+let journeyBuilt = false;
+function renderJourney() {
+  renderFavs();
+  if (journeyBuilt) return;
+  journeyBuilt = true;
+  const list = q('groups-list');
+  list.innerHTML = '';
+  const rank = LEVEL_RANK[ST.level] ?? 1;
+  let cardNum = 0;
+
+  GROUPS.forEach((group, gi) => {
+    const grank = LEVEL_RANK[group.minLevel] ?? 0;
+    if (grank > rank) return; // locked for current level
+
+    const startIdx = GROUP_OFFSETS[gi];
+    const card = document.createElement('div');
+    card.className = 'g-card' + (cardNum === 0 ? ' open' : '');
+    cardNum++;
+    const hdr = document.createElement('div');
+    hdr.className = 'g-card-hdr';
+    hdr.setAttribute('role', 'button');
+    hdr.setAttribute('aria-expanded', cardNum === 1 ? 'true' : 'false');
+    hdr.innerHTML = `<div>
+      <div class="g-num">${T().group} ${cardNum}</div>
+      <div class="g-name">${group.label[ST.lang] || group.label.en}</div>
+      <div class="g-meta">${group.pointers.length} pointers · ${group.minLevel}</div>
+    </div><div class="g-chev" aria-hidden="true">▾</div>`;
+    hdr.addEventListener('click', () => {
+      const open = card.classList.toggle('open');
+      hdr.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    const body = document.createElement('div');
+    body.className = 'g-card-body';
+    group.pointers.forEach((ptr, pi) => {
+      const absIdx = startIdx + pi;
+      const item = document.createElement('div');
+      item.className = 'p-item';
+      const favOn = ST.favs.has(absIdx);
+      item.innerHTML = `<div class="p-item-num">${pi + 1}</div>
+        <div class="p-item-txt">“${ptr[ST.lang] || ptr.en}”</div>
+        <div class="p-fav${favOn ? ' on' : ''}" data-i="${absIdx}" role="button"
+          aria-label="${favOn ? 'Remove from saved' : 'Save pointer'}">${favOn ? '♥' : '♡'}</div>`;
+      item.querySelector('.p-item-txt').addEventListener('click', () => {
+        goTo(absIdx); showScreen('meditate');
+      });
+      const fBtn = item.querySelector('.p-fav');
+      fBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const i = parseInt(fBtn.dataset.i);
+        if (ST.favs.has(i)) {
+          ST.favs.delete(i); fBtn.textContent = '♡'; fBtn.classList.remove('on');
+          fBtn.setAttribute('aria-label', 'Save pointer');
+        } else {
+          ST.favs.add(i); fBtn.textContent = '♥'; fBtn.classList.add('on');
+          fBtn.setAttribute('aria-label', 'Remove from saved');
+        }
+        persist(); renderFavs();
+      });
+      body.appendChild(item);
+    });
+    card.appendChild(hdr); card.appendChild(body); list.appendChild(card);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// JOURNAL TAB
+// ═══════════════════════════════════════════════════════════════
+function renderJournal() {
+  const entries = loadJrn(), el = q('jrn-entries');
+  el.innerHTML = '';
+  if (!entries.length) {
+    const em = document.createElement('div');
+    em.className = 'jrn-empty';
+    em.textContent = T().noEntries;
+    el.appendChild(em);
+    return;
+  }
+  entries.slice().reverse().forEach((entry, ri) => {
+    const idx = entries.length - 1 - ri;
+    const div = document.createElement('div');
+    div.className = 'jrn-entry';
+    div.setAttribute('role', 'listitem');
+    const ds = new Date(entry.ts).toLocaleDateString(undefined, {
+      day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+    div.innerHTML = `<div class="jrn-entry-date">${ds}</div>
+      ${entry.ptr ? `<div class="jrn-entry-ptr">“${entry.ptr}”</div>` : ''}
+      <div class="jrn-entry-body">${entry.body.replace(/</g,'&lt;').replace(/\n/g, '<br>')}</div>
+      <button class="jrn-del" data-i="${idx}" aria-label="Delete entry">✕</button>`;
+    div.querySelector('.jrn-del').addEventListener('click', e => {
+      e.stopPropagation();
+      const arr = loadJrn();
+      arr.splice(parseInt(e.target.dataset.i), 1);
+      saveJrn(arr); renderJournal();
+    });
+    el.appendChild(div);
+  });
+}
+q('jrn-save').addEventListener('click', () => {
+  const txt = q('jrn-text').value.trim();
+  if (!txt) return;
+  const p = ALL[ST.cur];
+  const arr = loadJrn();
+  arr.push({ ts: Date.now(), body: txt, ptr: p ? (p.text[ST.lang] || p.text.en) : '' });
+  saveJrn(arr);
+  q('jrn-text').value = '';
+  renderJournal();
+});
+
+// ═══════════════════════════════════════════════════════════════
+// GUIDE TAB
+// ═══════════════════════════════════════════════════════════════
+function buildGuide() {
+  const el = q('guide-content');
+  // Preparation Practice card (beginner only)
+  const prep = document.createElement('div');
+  prep.id = 'prep-card';
+  prep.className = 'tribute-block';
+  prep.style.display = ST.level === 'beginner' ? '' : 'none';
+  prep.innerHTML = `<div class="tribute-label">🌱 Preparation Practice</div>
+    <div class="tribute-body" style="font-size:.87rem;margin-bottom:1rem">
+      5 short grounding practices to prepare the mind before inquiry.<br>
+      Take a few minutes before you begin sitting.
+    </div>
+    <button onclick="showBeginnerTask()" style="padding:.62rem 1.6rem;
+      background:rgba(77,184,212,.1);border:.5px solid rgba(77,184,212,.3);
+      border-radius:22px;color:#4db8d4;font-size:.8rem;letter-spacing:.12em;
+      text-transform:uppercase;cursor:pointer;font-family:inherit;transition:all .2s">
+      Begin Preparation →
+    </button>`;
+  el.appendChild(prep);
+
+  // Tribute
+  const tr = document.createElement('div');
+  tr.className = 'tribute-block';
+  tr.innerHTML = `
+    <div class="tribute-label">With Deep Gratitude</div>
+
+    <!-- Block 1: Root teachers -->
+    <div class="tribute-body">
+      Rooted in the direct teachings of<br>
+      <span class="tribute-name">Sri Ramana Maharshi</span><br>
+      <span style="font-size:.78rem;opacity:.6;letter-spacing:.08em">and</span><br>
+      <span class="tribute-name">Sri Nisargadatta Maharaj</span>
+    </div>
+
+    <hr class="tribute-divider">
+
+    <!-- Block 2: Personal lineage -->
+    <div class="tribute-personal">
+      With heartfelt gratitude to <span class="tribute-person">John Wheeler</span> —
+      whose extraordinary clarity, kindness, and direct guidance through personal emails
+      and Skype conversations helped dissolve many layers of conceptual confusion.
+      His book <em>Awakening to the Natural State</em> was a turning point.
+    </div>
+    <div class="tribute-personal">
+      With deep reverence to <span class="tribute-person">Ramakant Maharaj</span> —
+      from whom the mantra <em>Aham Brahmasmi</em> was received, further deepening
+      the inward turning toward the source beyond mind, identity, and personhood.
+    </div>
+
+    <hr class="tribute-divider">
+
+    <!-- Block 3: Author's note -->
+    <div class="tribute-note">
+      These pointers are not offered as philosophy, belief, or any claim of spiritual
+      attainment. They arise from direct contemplative observation — from repeatedly
+      watching false identities, mental images, and the sense of separation dissolve
+      into silence, presence, and the unknown.
+    </div>`;
+  el.appendChild(tr);
+
+  // Guide blocks
+  GUIDE.forEach(b => {
+    const div = document.createElement('div');
+    div.className = 'guide-block';
+    div.innerHTML = `<div class="guide-ttl">${b.title}</div>
+      <div class="guide-body">${b.body}${b.sub ? `<span class="guide-sub">${b.sub}</span>` : ''}</div>`;
+    el.appendChild(div);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SETTINGS — CHIPS
+// ═══════════════════════════════════════════════════════════════
+function setActiveChip(gid, val) {
+  document.querySelectorAll(`#${gid} .chip`).forEach(c => c.classList.toggle('on', c.dataset.v === String(val)));
+}
+function initChips(gid, cb) {
+  document.querySelectorAll(`#${gid} .chip`).forEach(c => c.addEventListener('click', () => {
+    document.querySelectorAll(`#${gid} .chip`).forEach(x => x.classList.remove('on'));
+    c.classList.add('on');
+    cb(c.dataset.v);
+  }));
+}
+
+function refreshUI() {
+  const t = T();
+  document.documentElement.lang = ST.lang;
+  document.documentElement.dir = 'ltr'; // All supported languages are LTR
+  document.querySelectorAll('[data-ui]').forEach(el => {
+    const k = el.dataset.ui;
+    if (t[k] !== undefined) el.textContent = t[k];
+  });
+  document.querySelectorAll('[data-ph]').forEach(el => {
+    const k = el.dataset.ph;
+    if (t[k]) el.placeholder = t[k];
+  });
+  q('mode-hint').textContent = t.seqHint.replace('{n}', getPool().length);
+  q('sound-lbl').textContent = ST.sndOn
+    ? (ST.sndType === 'bowls' ? t.singingBowls : ST.sndType === 'bells' ? t.bells : ST.sndType === 'drone' ? t.deepDrone : t.soundOff)
+    : t.soundOff;
+  buildDots();
+  refreshLevelStrip();
+  showPtr(true);
+}
+
+initChips('lang-chips', v => {
+  ST.lang = v; persist(); refreshUI(); refreshLevelCards();
+  journeyBuilt = false; q('groups-list').innerHTML = '';
+  if (ST.screen === 'journey') renderJourney();
+  if (ST.screen === 'journal') renderJournal();
+});
+initChips('dur-chips', v => { ST.dur = Number(v); arcReset(); resetAdv(); if (!ST.paused && ST.mode !== 'man') arcStart(); });
+initChips('sess-chips', v => { ST.sessLen = Number(v); startSessTimer(); ST.sessStart = Date.now(); ST.ptrsHit = 0; });
+initChips('mode-chips', v => {
+  ST.mode = v;
+  q('btn-pause').textContent = v === 'man' ? '—' : '⏸';
+  q('btn-pause').setAttribute('aria-label', v === 'man' ? 'Manual mode — tap next to advance' : 'Pause session');
+  resetAdv();
+  if (!ST.paused && v !== 'man') { arcReset(); arcStart(); }
+});
+initChips('snd-chips', v => { const was = ST.sndOn; ST.sndType = v; if (was) applySnd(); });
+initChips('start-chips', v => { ST.startMode = v; });
+
+// ═══════════════════════════════════════════════════════════════
+// AHAM BRAHMASMI — Web Audio Engine  (AB namespace)
+// Full formant synthesis: tanpura · bowl · voice · binaural · reverb
+// ═══════════════════════════════════════════════════════════════
+
+const AB = {
+  audioCtx:       null,
+  isPlaying:      false,
+  currentMode:    'standard',
+  sessionStart:   null,
+  sessionTimer:   null,
+  cycleCount:     0,
+  masterGain:     null,
+  tanpuraGain:    null,
+  bowlGain:       null,
+  reverbGain:     null,
+  binauralGain:   null,
+  mantraGain:     null,
+  reverbNode:     null,
+  tanpuraOscs:    [],
+  binauralOscs:   [],
+  mantraSeq:      null,
+  analyser:       null,
+  analyserData:   null,
+  MODES: {
+    standard:   { cycle: 28, silence: 14.4, interWord: 2.8, binHz: 0,   mVol: 0.82 },
+    headphones: { cycle: 34, silence: 18.0, interWord: 3.5, binHz: 4.0, mVol: 0.72 },
+    sleep:      { cycle: 50, silence: 34.0, interWord: 4.5, binHz: 3.5, mVol: 0.55 }
+  },
+  vols: { mantra: 0.82, tanpura: 0.45, bowl: 0.38, reverb: 0.6, binaural: 0 }
+};
+
+async function abInitAudio() {
+  if (AB.audioCtx) return;
+  AB.audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
+  AB.masterGain = AB.audioCtx.createGain();
+  AB.masterGain.gain.setValueAtTime(0, AB.audioCtx.currentTime);
+  AB.masterGain.connect(AB.audioCtx.destination);
+  AB.reverbNode = abBuildReverb(AB.audioCtx);
+  AB.reverbGain = AB.audioCtx.createGain();
+  AB.reverbGain.gain.value = AB.vols.reverb * 0.8;
+  AB.reverbNode._output.connect(AB.reverbGain);
+  AB.reverbGain.connect(AB.masterGain);
+  AB.tanpuraGain = AB.audioCtx.createGain();
+  AB.tanpuraGain.gain.value = 0;
+  AB.tanpuraGain.connect(AB.masterGain);
+  const tanpRev = AB.audioCtx.createGain(); tanpRev.gain.value = 0.3;
+  AB.tanpuraGain.connect(tanpRev); tanpRev.connect(AB.reverbNode);
+  AB.bowlGain = AB.audioCtx.createGain();
+  AB.bowlGain.gain.value = 0;
+  AB.bowlGain.connect(AB.masterGain);
+  const bowlRev = AB.audioCtx.createGain(); bowlRev.gain.value = 0.5;
+  AB.bowlGain.connect(bowlRev); bowlRev.connect(AB.reverbNode);
+  AB.mantraGain = AB.audioCtx.createGain();
+  AB.mantraGain.gain.value = 0;
+  AB.mantraGain.connect(AB.masterGain);
+  const mRev = AB.audioCtx.createGain(); mRev.gain.value = 0.45;
+  AB.mantraGain.connect(mRev); mRev.connect(AB.reverbNode);
+  AB.binauralGain = AB.audioCtx.createGain();
+  AB.binauralGain.gain.value = 0;
+  AB.binauralGain.connect(AB.masterGain);
+  abStartTanpura();
+}
+
+function abBuildReverb(ctx) {
+  const input = ctx.createGain(); input.gain.value = 1;
+  const merger = ctx.createChannelMerger(2);
+  const delays = [0.0297, 0.0371, 0.0411, 0.0437];
+  const gains  = [0.742,  0.733,  0.715,  0.697];
+  delays.forEach((d, i) => {
+    const delay = ctx.createDelay(1.0); delay.delayTime.value = d;
+    const fb = ctx.createGain(); fb.gain.value = gains[i];
+    input.connect(delay); delay.connect(fb); fb.connect(delay);
+    delay.connect(merger, 0, i % 2);
+  });
+  const ap1 = ctx.createDelay(0.1); ap1.delayTime.value = 0.005;
+  const ap2 = ctx.createDelay(0.1); ap2.delayTime.value = 0.0017;
+  input.connect(ap1); ap1.connect(ap2); ap2.connect(merger, 0, 0);
+  const lpf = ctx.createBiquadFilter();
+  lpf.type = 'lowpass'; lpf.frequency.value = 4800;
+  merger.connect(lpf);
+  input._output = lpf;
+  return input;
+}
+
+function abStartTanpura() {
+  if (AB.tanpuraOscs.length) return;
+  const freqs = [73.42, 110.00, 146.83, 147.10];
+  const types = ['sine', 'triangle', 'sine', 'sine'];
+  const amps  = [0.28, 0.22, 0.30, 0.20];
+  freqs.forEach((f, i) => {
+    const osc = AB.audioCtx.createOscillator();
+    const g   = AB.audioCtx.createGain();
+    osc.type = types[i]; osc.frequency.value = f;
+    g.gain.value = amps[i] * AB.vols.tanpura * 0.4;
+    osc.connect(g); g.connect(AB.tanpuraGain); osc.start();
+    const lfo  = AB.audioCtx.createOscillator();
+    const lfoG = AB.audioCtx.createGain();
+    lfo.frequency.value = 0.07 + i * 0.02; lfoG.gain.value = 0.02;
+    lfo.connect(lfoG); lfoG.connect(g.gain); lfo.start();
+    AB.tanpuraOscs.push({ osc, g, lfo });
+  });
+  AB.tanpuraGain.gain.setValueAtTime(0, AB.audioCtx.currentTime);
+  AB.tanpuraGain.gain.linearRampToValueAtTime(AB.vols.tanpura * 0.4, AB.audioCtx.currentTime + 8);
+}
+
+function abStrikeBowl(time, vol) {
+  if (!AB.audioCtx) return;
+  vol = vol || 1;
+  const partials = [
+    { f: 432,  a: 1.0,  d: 10.0 },
+    { f: 864,  a: 0.45, d: 6.0  },
+    { f: 1344, a: 0.20, d: 3.5  },
+    { f: 2016, a: 0.10, d: 2.0  },
+    { f: 2808, a: 0.04, d: 1.2  },
+  ];
+  partials.forEach(p => {
+    const osc = AB.audioCtx.createOscillator();
+    const env = AB.audioCtx.createGain();
+    osc.type = 'sine'; osc.frequency.value = p.f;
+    env.gain.setValueAtTime(0, time);
+    env.gain.linearRampToValueAtTime(vol * p.a * AB.vols.bowl * 0.35, time + 0.015);
+    env.gain.exponentialRampToValueAtTime(0.0001, time + p.d);
+    osc.connect(env); env.connect(AB.bowlGain);
+    osc.start(time); osc.stop(time + p.d + 0.1);
+  });
+}
+
+function abSpeakPhase(phase, startTime) {
+  if (!AB.audioCtx) return;
+  const v = AB.vols.mantra;
+  const pitch = AB.currentMode === 'sleep' ? 70 : (AB.currentMode === 'headphones' ? 82 : 90);
+  if (phase === 1) {
+    abSynthVowel(startTime,       0.5, pitch * 1.0,  [800, 1200, 2600], v * 0.85);
+    abSynthNasal(startTime + 0.5, 2.0, pitch * 0.94, v * 0.9);
+  } else {
+    abSynthVowel(startTime,       0.6, pitch * 0.88, [600, 900, 2200],  v * 0.90);
+    abSynthVowel(startTime + 0.6, 1.8, pitch * 0.88, [700, 1100, 2400], v * 0.95);
+    abSynthVowel(startTime + 2.4, 1.4, pitch * 0.82, [400, 900, 2100],  v * 0.55);
+  }
+}
+
+function abSynthVowel(start, dur, f0, formants, vol) {
+  const osc = AB.audioCtx.createOscillator();
+  osc.type = 'sawtooth'; osc.frequency.value = f0;
+  const noise = AB.audioCtx.createOscillator();
+  noise.type = 'triangle'; noise.frequency.value = f0 * 1.003;
+  const noiseG = AB.audioCtx.createGain(); noiseG.gain.value = 0.08;
+  noise.connect(noiseG);
+  const filters = formants.map((fq, i) => {
+    const bpf = AB.audioCtx.createBiquadFilter();
+    bpf.type = 'bandpass'; bpf.frequency.value = fq; bpf.Q.value = 8 - i;
+    return bpf;
+  });
+  const merge = AB.audioCtx.createGain(); merge.gain.value = vol * 0.18;
+  osc.connect(filters[0]); filters[0].connect(filters[1]);
+  filters[1].connect(filters[2]); filters[2].connect(merge);
+  noiseG.connect(merge);
+  const env = AB.audioCtx.createGain();
+  merge.connect(env); env.connect(AB.mantraGain);
+  const atk = 0.18, rel = 0.35;
+  env.gain.setValueAtTime(0, start);
+  env.gain.linearRampToValueAtTime(1, start + atk);
+  env.gain.setValueAtTime(1, start + dur - rel);
+  env.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+  osc.start(start); osc.stop(start + dur + 0.1);
+  noise.start(start); noise.stop(start + dur + 0.1);
+}
+
+function abSynthNasal(start, dur, f0, vol) {
+  const osc = AB.audioCtx.createOscillator();
+  osc.type = 'triangle'; osc.frequency.value = f0;
+  const nasal = AB.audioCtx.createBiquadFilter();
+  nasal.type = 'bandpass'; nasal.frequency.value = 280; nasal.Q.value = 12;
+  const g = AB.audioCtx.createGain(); g.gain.value = vol * 0.22;
+  osc.connect(nasal); nasal.connect(g);
+  const env = AB.audioCtx.createGain();
+  g.connect(env); env.connect(AB.mantraGain);
+  env.gain.setValueAtTime(0, start);
+  env.gain.linearRampToValueAtTime(1, start + 0.3);
+  env.gain.linearRampToValueAtTime(0.7, start + dur - 0.8);
+  env.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+  osc.start(start); osc.stop(start + dur + 0.1);
+}
+
+function abStartBinaural(beatFreq) {
+  abStopBinaural();
+  if (!beatFreq) return;
+  const baseFreq = 180;
+  const merger = AB.audioCtx.createChannelMerger(2);
+  const oscL = AB.audioCtx.createOscillator();
+  const oscR = AB.audioCtx.createOscillator();
+  oscL.type = oscR.type = 'sine';
+  oscL.frequency.value = baseFreq;
+  oscR.frequency.value = baseFreq + beatFreq;
+  const gL = AB.audioCtx.createGain(); gL.gain.value = AB.vols.binaural * 0.3;
+  const gR = AB.audioCtx.createGain(); gR.gain.value = AB.vols.binaural * 0.3;
+  oscL.connect(gL); gL.connect(merger, 0, 0);
+  oscR.connect(gR); gR.connect(merger, 0, 1);
+  merger.connect(AB.binauralGain);
+  oscL.start(); oscR.start();
+  AB.binauralOscs = [oscL, oscR, gL, gR];
+}
+
+function abStopBinaural() {
+  AB.binauralOscs.forEach(n => { try { n.disconnect(); if (n.stop) n.stop(); } catch(e){} });
+  AB.binauralOscs = [];
+}
+
+function abRunCycle() {
+  const cfg = AB.MODES[AB.currentMode];
+  const now = AB.audioCtx.currentTime;
+  abStrikeBowl(now, AB.cycleCount % 7 === 0 ? 1.15 : 1.0);
+  abSpeakPhase(1, now + 1.5);
+  const brahmaStart = now + 1.5 + 3.0 + cfg.interWord;
+  abSpeakPhase(2, brahmaStart);
+  AB.cycleCount++;
+  const cd = document.getElementById('ab-cycleDisp');
+  if (cd) cd.textContent = AB.cycleCount;
+  AB.mantraSeq = setTimeout(abRunCycle, cfg.cycle * 1000);
+  abUpdateDisplay(cfg);
+}
+
+function abUpdateDisplay(cfg) {
+  const aham   = document.getElementById('ab-wAham');
+  const brahma = document.getElementById('ab-wBrahma');
+  const dot    = document.getElementById('ab-dot1');
+  const breath = document.getElementById('ab-breathCue');
+  const orb    = document.getElementById('ab-orb');
+  if (!aham) return;
+  setTimeout(() => {
+    aham.classList.add('active'); dot.classList.add('visible');
+    breath.textContent = '· exhale ·'; breath.classList.add('visible');
+    if (orb) orb.style.background = 'radial-gradient(circle,rgba(201,169,110,.12) 0%,transparent 70%)';
+  }, 1500);
+  setTimeout(() => {
+    aham.classList.remove('active');
+    breath.textContent = '· still ·';
+    if (orb) orb.style.background = 'radial-gradient(circle,rgba(100,80,150,.06) 0%,transparent 70%)';
+  }, 4500);
+  const bDelay = (1.5 + 3.0 + cfg.interWord) * 1000;
+  setTimeout(() => {
+    brahma.classList.add('active');
+    breath.textContent = '· dissolve ·';
+    if (orb) orb.style.background = 'radial-gradient(circle,rgba(201,169,110,.18) 0%,transparent 65%)';
+  }, bDelay);
+  setTimeout(() => {
+    brahma.classList.remove('active'); dot.classList.remove('visible');
+    breath.classList.remove('visible'); breath.textContent = '';
+    if (orb) orb.style.background = 'radial-gradient(circle,rgba(50,40,80,.04) 0%,transparent 70%)';
+  }, bDelay + 4500);
+}
+
+function abStartVisualizer() {
+  if (!AB.analyser) {
+    AB.analyser = AB.audioCtx.createAnalyser();
+    AB.analyser.fftSize = 256;
+    AB.analyserData = new Uint8Array(AB.analyser.frequencyBinCount);
+    AB.masterGain.connect(AB.analyser);
+  }
+  abDrawWaveform();
+}
+
+function abDrawWaveform() {
+  if (!AB.isPlaying) return;
+  requestAnimationFrame(abDrawWaveform);
+  const canvas = document.getElementById('ab-waveform');
+  if (!canvas) return;
+  const ctx2 = canvas.getContext('2d');
+  AB.analyser.getByteFrequencyData(AB.analyserData);
+  ctx2.clearRect(0, 0, canvas.width, canvas.height);
+  const W = canvas.width, H = canvas.height;
+  const barW = W / AB.analyserData.length * 2.5;
+  let x = 0;
+  for (let i = 0; i < AB.analyserData.length; i++) {
+    const v = AB.analyserData[i] / 255;
+    const h = v * H * 0.85;
+    ctx2.fillStyle = `rgba(201,169,110,${0.15 + v * 0.5})`;
+    ctx2.fillRect(x, H - h, barW - 1, h);
+    x += barW + 0.5;
+    if (x > W) break;
+  }
+}
+
+async function abTogglePlay() {
+  await abInitAudio();
+  if (AB.audioCtx.state === 'suspended') await AB.audioCtx.resume();
+  AB.isPlaying ? abPause() : abPlay();
+}
+
+function abPlay() {
+  vnStop(); // cross-stop: kill meditation narration
+  AB.isPlaying = true;
+  const btn = document.getElementById('ab-playBtn');
+  const ip  = document.getElementById('ab-iconPlay');
+  const ipu = document.getElementById('ab-iconPause');
+  const orb = document.getElementById('ab-orb');
+  if (btn) btn.classList.add('playing');
+  if (ip)  ip.style.display  = 'none';
+  if (ipu) ipu.style.display = 'block';
+  if (orb) orb.classList.add('breathing');
+  AB.masterGain.gain.cancelScheduledValues(AB.audioCtx.currentTime);
+  AB.masterGain.gain.setValueAtTime(AB.masterGain.gain.value, AB.audioCtx.currentTime);
+  AB.masterGain.gain.linearRampToValueAtTime(0.9, AB.audioCtx.currentTime + 10);
+  AB.bowlGain.gain.setValueAtTime(0, AB.audioCtx.currentTime);
+  AB.bowlGain.gain.linearRampToValueAtTime(1, AB.audioCtx.currentTime + 3);
+  abStrikeBowl(AB.audioCtx.currentTime + 1.0, 0.7);
+  const delay = AB.currentMode === 'sleep' ? 12000 : 8000;
+  AB.mantraSeq = setTimeout(abRunCycle, delay);
+  AB.sessionStart = Date.now();
+  AB.sessionTimer = setInterval(abUpdateTimer, 1000);
+  abStartVisualizer();
+  const cfg = AB.MODES[AB.currentMode];
+  if (cfg.binHz > 0) abStartBinaural(cfg.binHz);
+}
+
+function abPause() {
+  AB.isPlaying = false;
+  const btn = document.getElementById('ab-playBtn');
+  const ip  = document.getElementById('ab-iconPlay');
+  const ipu = document.getElementById('ab-iconPause');
+  const orb = document.getElementById('ab-orb');
+  if (btn) btn.classList.remove('playing');
+  if (ip)  ip.style.display  = 'block';
+  if (ipu) ipu.style.display = 'none';
+  if (orb) orb.classList.remove('breathing');
+  if (AB.masterGain) {
+    AB.masterGain.gain.cancelScheduledValues(AB.audioCtx.currentTime);
+    AB.masterGain.gain.setValueAtTime(AB.masterGain.gain.value, AB.audioCtx.currentTime);
+    AB.masterGain.gain.linearRampToValueAtTime(0, AB.audioCtx.currentTime + 3);
+  }
+  clearTimeout(AB.mantraSeq);
+  clearInterval(AB.sessionTimer);
+  const aw = document.getElementById('ab-wAham');
+  const bw = document.getElementById('ab-wBrahma');
+  const d1 = document.getElementById('ab-dot1');
+  const bc = document.getElementById('ab-breathCue');
+  if (aw) aw.classList.remove('active');
+  if (bw) bw.classList.remove('active');
+  if (d1) d1.classList.remove('visible');
+  if (bc) bc.classList.remove('visible');
+  abStopBinaural();
+}
+
+// Cross-stop: called from vnSetMode and showScreen to halt mantra
+function abStop() {
+  if (!AB.isPlaying && !AB.mantraSeq) return;
+  abPause();
+}
+
+function abUpdateTimer() {
+  const elapsed = Math.floor((Date.now() - AB.sessionStart) / 1000);
+  const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
+  const s = (elapsed % 60).toString().padStart(2, '0');
+  const el = document.getElementById('ab-timerDisp');
+  if (el) el.textContent = `${m}:${s}`;
+}
+
+function abSetMode(mode) {
+  AB.currentMode = mode;
+  document.querySelectorAll('.ab-mode-btn').forEach(b => b.classList.remove('active'));
+  const mb = document.querySelector(`[data-abmode="${mode}"]`);
+  if (mb) mb.classList.add('active');
+  const br = document.getElementById('ab-binRow');
+  if (mode === 'headphones' || mode === 'sleep') {
+    if (br) br.style.opacity = '1';
+    if (AB.vols.binaural === 0) {
+      const sl = document.getElementById('ab-slBinaural');
+      if (sl) sl.value = 35;
+      abUpdateVol('binaural', 35);
+    }
+  } else {
+    if (br) br.style.opacity = '0.3';
+    abUpdateVol('binaural', 0);
+    const sl = document.getElementById('ab-slBinaural');
+    if (sl) sl.value = 0;
+  }
+  if (AB.isPlaying) {
+    clearTimeout(AB.mantraSeq);
+    abStopBinaural();
+    const cfg = AB.MODES[AB.currentMode];
+    if (cfg.binHz > 0) abStartBinaural(cfg.binHz);
+    AB.mantraSeq = setTimeout(abRunCycle, 500);
+  }
+}
+
+function abUpdateVol(layer, val) {
+  const v = parseInt(val) / 100;
+  AB.vols[layer] = v;
+  const key = layer.charAt(0).toUpperCase() + layer.slice(1);
+  const el = document.getElementById('ab-val' + key);
+  if (el) el.textContent = val;
+  if (!AB.audioCtx) return;
+  const t = AB.audioCtx.currentTime;
+  if (layer === 'tanpura'  && AB.tanpuraGain)  AB.tanpuraGain.gain.setTargetAtTime(v * 0.4, t, 0.5);
+  if (layer === 'bowl'     && AB.bowlGain)     AB.bowlGain.gain.setTargetAtTime(v, t, 0.5);
+  if (layer === 'reverb'   && AB.reverbGain)   AB.reverbGain.gain.setTargetAtTime(v * 0.8, t, 0.5);
+  if (layer === 'mantra'   && AB.mantraGain)   AB.mantraGain.gain.setTargetAtTime(v, t, 0.5);
+  if (layer === 'binaural' && AB.binauralGain) AB.binauralGain.gain.setTargetAtTime(v * 0.3, t, 0.5);
+}
+
+function abShowTab(id, e) {
+  document.querySelectorAll('.ab-section').forEach(s => s.classList.remove('visible'));
+  document.querySelectorAll('.ab-tab-btn').forEach(b => b.classList.remove('active'));
+  const sec = document.getElementById('ab-tab-' + id);
+  if (sec) sec.classList.add('visible');
+  if (e && e.target) e.target.classList.add('active');
+}
+
+// Draw idle waveform on load
+(function abInitCanvas() {
+  const canvas = document.getElementById('ab-waveform');
+  if (!canvas) return;
+  const ctx2 = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx2.strokeStyle = 'rgba(201,169,110,0.15)';
+  ctx2.lineWidth = 1;
+  ctx2.beginPath();
+  for (let x = 0; x <= W; x++) {
+    const y = H / 2 + Math.sin(x * 0.05) * 3;
+    x === 0 ? ctx2.moveTo(x, y) : ctx2.lineTo(x, y);
+  }
+  ctx2.stroke();
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// TOUCH & KEYBOARD
+// ═══════════════════════════════════════════════════════════════
+let tx0 = 0, ty0 = 0;
+q('s-meditate').addEventListener('touchstart', e => {
+  tx0 = e.touches[0].clientX; ty0 = e.touches[0].clientY;
+}, { passive: true });
+q('s-meditate').addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - tx0;
+  const dy = e.changedTouches[0].clientY - ty0;
+  if (Math.abs(dx) > 55 && Math.abs(dy) < 45) {
+    if (dx < 0) goTo(ST.cur + 1); else goTo(ST.cur - 1);
+  }
+}, { passive: true });
+
+document.addEventListener('keydown', e => {
+  if (q('jrn-text') === document.activeElement) return;
+  if (ST.screen !== 'meditate') return;
+  if (e.key === 'ArrowRight' || e.key === ' ') {
+    e.preventDefault();
+    if (ST.addrMode) nextAddr(); else goTo(ST.cur + 1);
+  }
+  if (e.key === 'ArrowLeft') {
+    if (ST.addrMode) { if (ST.addrIdx > 0) { ST.addrIdx--; arcReset(); showPtr(); arcStart(); } }
+    else goTo(ST.cur - 1);
+  }
+  if (e.key.toLowerCase() === 'p') q('btn-pause').click();
+  if (e.key.toLowerCase() === 's') q('btn-sound').click();
+  if (e.key.toLowerCase() === 'f') q('btn-fav').click();
+  if (e.key.toLowerCase() === 'b') startBreath();
+});
+
+// ═══════════════════════════════════════════════════════════════
+// PWA — Install prompt
+// ═══════════════════════════════════════════════════════════════
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  q('pwa-grp').style.display = '';
+});
+q('btn-install').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  if (outcome === 'accepted') q('pwa-grp').style.display = 'none';
+  deferredPrompt = null;
+});
+window.addEventListener('appinstalled', () => {
+  q('pwa-grp').style.display = 'none';
+  deferredPrompt = null;
+});
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+(function init() {
+  buildGuide();
+  buildDots();
+  refreshStats();
+  refreshLevelCards();
+  refreshLevelStrip();
+  renderProgressDisplay();
+  setActiveChip('lang-chips', ST.lang);
+  refreshUI();
+  vnInit();       // initialise voice narration engine
+
+  // Always start meditating immediately — default level is 'all'.
+  // User can change level via the level strip on the meditate screen at any time.
+  // Saved level (from previous session) is restored via ST.level = saved.level || 'all'.
+  startMeditating();
+})();
+</script>
+</body>
+</html>
