@@ -1114,11 +1114,6 @@ canvas#ab-waveform{width:100%;max-width:420px;height:40px;opacity:.5}
 <audio id="pn-audio" playsinline preload="none" style="display:none"></audio>
 <!-- Continuous track — one MP3 per level, plays on iOS lock screen without JS -->
 <audio id="ct-audio" playsinline preload="none" style="display:none"></audio>
-<!-- Ambient sounds — native <audio loop> so they survive iOS lock screen.
-     Web Audio API (AudioContext) is always suspended on lock; native <audio> is not. -->
-<audio id="snd-bowls-audio" src="audio/snd_bowls.mp3" loop playsinline preload="none" style="display:none"></audio>
-<audio id="snd-bells-audio" src="audio/snd_bells.mp3" loop playsinline preload="none" style="display:none"></audio>
-<audio id="snd-drone-audio" src="audio/snd_drone.mp3" loop playsinline preload="none" style="display:none"></audio>
 </div><!-- #app -->
 
 <!-- ── NAV ── -->
@@ -2142,34 +2137,6 @@ function mkGain(v) {
   return g;
 }
 
-// ── Native ambient sound system (survives iOS lock screen) ───────────────────
-// bowls/bells/drone use native <audio loop> instead of Web Audio API.
-// Web Audio (AudioContext) is always suspended by iOS on lock; <audio> is not.
-const _SND = { bowls: null, bells: null, drone: null };
-
-function sndInit() {
-  _SND.bowls = document.getElementById('snd-bowls-audio');
-  _SND.bells = document.getElementById('snd-bells-audio');
-  _SND.drone = document.getElementById('snd-drone-audio');
-}
-
-// Stop all native ambient audio elements immediately.
-function sndStopAll() {
-  Object.values(_SND).forEach(el => {
-    if (!el) return;
-    el.pause();
-    try { el.currentTime = 0; } catch {}
-  });
-  // Also stop legacy Web Audio drone if still running
-  stopDrone();
-  if (ST.bowlTimer) { clearInterval(ST.bowlTimer); ST.bowlTimer = null; }
-}
-
-// Returns true if any ambient sound element is currently playing.
-function sndAnyPlaying() {
-  return Object.values(_SND).some(el => el && !el.paused);
-}
-
 function bowl(mg) {
   const sets = [[196,294,392,523],[174,261,348,440],[220,330,440,587],[261,392,523,698]];
   const fs = sets[Math.floor(Math.random() * sets.length)];
@@ -2224,45 +2191,22 @@ function stopDrone() {
   }, 3000);
 }
 function applySnd() {
-  // Stop all ambient audio (native elements + legacy Web Audio) before switching type
-  sndStopAll();
+  if (ST.bowlTimer) { clearInterval(ST.bowlTimer); ST.bowlTimer = null; }
+  stopDrone();
   const btn = q('btn-sound'), lbl = q('sound-lbl');
   if (!ST.sndOn) { btn.textContent = '🔇'; btn.classList.remove('on'); lbl.textContent = T().soundOff; return; }
-  btn.classList.add('on');
+  ensureAudio(); btn.classList.add('on');
   if (ST.sndType === 'bowls') {
     btn.textContent = '🎵'; lbl.textContent = T().singingBowls;
-    // Native <audio loop> — survives iOS lock screen
-    if (_SND.bowls) {
-      _SND.bowls.volume = 0.65;
-      _SND.bowls.currentTime = 0;
-      _SND.bowls.play().catch(() => {});
-    } else {
-      // MP3 not generated yet — fall back to Web Audio synthesis
-      ensureAudio();
-      const g = mkGain(0.65); bowl(g);
-      ST.bowlTimer = setInterval(() => { if (ST.sndOn) bowl(g); }, 14000);
-    }
+    const g = mkGain(0.65); bowl(g);
+    ST.bowlTimer = setInterval(() => { if (ST.sndOn) bowl(g); }, 14000);
   } else if (ST.sndType === 'bells') {
     btn.textContent = '🔔'; lbl.textContent = T().bells;
-    if (_SND.bells) {
-      _SND.bells.volume = 0.55;
-      _SND.bells.currentTime = 0;
-      _SND.bells.play().catch(() => {});
-    } else {
-      ensureAudio();
-      const g = mkGain(0.55); bell(g);
-      ST.bowlTimer = setInterval(() => { if (ST.sndOn) bell(g); }, 7000);
-    }
+    const g = mkGain(0.55); bell(g);
+    ST.bowlTimer = setInterval(() => { if (ST.sndOn) bell(g); }, 7000);
   } else if (ST.sndType === 'drone') {
     btn.textContent = '〜'; lbl.textContent = T().deepDrone;
-    if (_SND.drone) {
-      _SND.drone.volume = 0.40;
-      _SND.drone.currentTime = 0;
-      _SND.drone.play().catch(() => {});
-    } else {
-      ensureAudio();
-      startDrone();
-    }
+    startDrone();
   } else {
     btn.textContent = '🔇'; lbl.textContent = T().soundOff; btn.classList.remove('on');
   }
@@ -3581,7 +3525,8 @@ function meditateStop() {
   if ('speechSynthesis' in window) speechSynthesis.cancel(); // belt-and-braces
   pnStop();                                              // stop individual pointer MP3
   ctStop();                                              // stop continuous track
-  sndStopAll();                                          // stop native ambient audio + Web Audio drone
+  stopDrone();
+  if (ST.bowlTimer) { clearInterval(ST.bowlTimer); ST.bowlTimer = null; }
   clearInterval(ST.advTimer);
   clearTimeout(ST.advTimer);
   arcPause();
@@ -4425,7 +4370,6 @@ window.addEventListener('appinstalled', () => {
   vnInit();       // initialise voice narration engine (speechSynthesis)
   pnInit();       // initialise pointer native-audio narration engine
   ctInit();       // initialise continuous-track engine (iOS lock-screen)
-  sndInit();      // hook native ambient audio elements (bowls/bells/drone)
 
   // Always start meditating immediately — default level is 'all'.
   // User can change level via the level strip on the meditate screen at any time.
@@ -4463,7 +4407,6 @@ window.addEventListener('appinstalled', () => {
     // Two competing <audio> elements let iOS pick only one — and it pauses the other.
     if (PN.el && !PN.el.paused) return;        // individual pointer MP3 is playing
     if (CT.active || CT.starting) return;       // continuous track is playing
-    if (sndAnyPlaying()) return;                // an ambient sound element is playing
     if (_silentGoing) return;
     _silentGoing = true;
     silentEl.play().catch(() => {});
@@ -4535,18 +4478,9 @@ window.addEventListener('appinstalled', () => {
       if (!ST.paused && ST.mode !== 'man' && VN.mode === 'off') arcStart();
     }
 
-    // 4. Resume ambient sounds if they were running before lock
-    // Native <audio> elements should survive lock automatically, but iOS may
-    // have paused them — explicitly resume any that are paused.
+    // 4. Restart Meditate ambient sounds if they were running
     if (ST.screen === 'meditate' && ST.sndOn) {
-      let sndResumed = false;
-      Object.values(_SND).forEach(el => {
-        if (el && el.paused && el.src) { el.play().catch(() => {}); sndResumed = true; }
-      });
-      // If no native elements were playing (MP3 not generated), fall back to Web Audio re-start
-      if (!sndResumed && !sndAnyPlaying()) {
-        try { applySnd(); } catch(e) {}
-      }
+      try { applySnd(); } catch(e) {}
     }
 
     // 5. Restart Mantra visual cycle if it was playing but timers died
