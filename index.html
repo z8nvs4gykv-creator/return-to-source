@@ -3518,9 +3518,12 @@ q('btn-continue').addEventListener('click', () => {
 // ═══════════════════════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════════════════════
-// Stop ALL meditate-screen audio: narration + ambient sounds + arc timers
+// Stop ALL meditate-screen audio: narration (CT + PN + speech) + ambient sounds + arc timers
 function meditateStop() {
-  vnStop();
+  vnStop();                                              // stop speechSynthesis
+  if ('speechSynthesis' in window) speechSynthesis.cancel(); // belt-and-braces
+  pnStop();                                              // stop individual pointer MP3
+  ctStop();                                              // stop continuous track
   stopDrone();
   if (ST.bowlTimer) { clearInterval(ST.bowlTimer); ST.bowlTimer = null; }
   clearInterval(ST.advTimer);
