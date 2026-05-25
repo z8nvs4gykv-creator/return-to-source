@@ -2289,6 +2289,8 @@ function pnInit() {
 // back to the MP3 file at full volume.
 function _pnAnchorStart() {
   if (!PN.el) return;
+  // Stop competing silentEl FIRST — iOS only keeps one <audio> as session holder.
+  if (window.__pnStopSilent) window.__pnStopSilent();
   PN.el.onended = null;
   PN.el.onerror = null;
   PN.el.loop   = true;
@@ -2371,6 +2373,9 @@ function pnTryPlay(p, txt, preDelay = 1200) {
       .then(() => {
         PN.active = true;
         vnSetDot(true);
+        // Stop silentEl immediately — iOS only keeps ONE <audio> as the
+        // lock-screen session holder. pn-audio is now that holder.
+        if (window.__pnStopSilent) window.__pnStopSilent();
       })
       .catch(() => {
         // play() rejected (file missing, format error, etc.) — fall back
@@ -4173,11 +4178,24 @@ window.addEventListener('appinstalled', () => {
   silentEl.setAttribute('playsinline', '');
   silentEl.setAttribute('webkit-playsinline', '');
   let _silentGoing = false;
+
   function _startSilent() {
+    // Don't start silentEl if pn-audio is the session holder (narration mode).
+    // Two competing <audio> elements let iOS pick only one — and it pauses the other.
+    if (PN.el && !PN.el.paused) return;
     if (_silentGoing) return;
     _silentGoing = true;
     silentEl.play().catch(() => {});
   }
+  function _stopSilent() {
+    if (!_silentGoing) return;
+    _silentGoing = false;
+    silentEl.pause();
+  }
+  // Expose so pn-audio system can take exclusive control of the iOS session
+  window.__pnStopSilent  = _stopSilent;
+  window.__pnStartSilent = _startSilent;
+
   document.addEventListener('touchstart', _startSilent, { once: true, passive: true });
   document.addEventListener('click',      _startSilent, { once: true, passive: true });
 
@@ -4187,8 +4205,10 @@ window.addEventListener('appinstalled', () => {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
       _lockedAt = Date.now();
-      // Ensure silent anchor is looping so iOS audio session stays alive
-      _startSilent();
+      // Only keep silentEl going if pn-audio is NOT active.
+      // If pn-audio is the session holder, touching silentEl causes iOS
+      // to switch session ownership and may pause pn-audio on lock.
+      if (!PN.el || PN.el.paused) _startSilent();
       // Update MediaSession state so lock screen shows correct controls
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = AB.isPlaying ? 'playing' : 'paused';
