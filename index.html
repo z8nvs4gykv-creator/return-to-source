@@ -2324,6 +2324,7 @@ function pnStop() {
 // Called when MP3 playback ends; clears the fallback timer, sets a new
 // timeout, then auto-advances to the next pointer.
 function _pnScheduleAdvance() {
+  if (CT.active) return; // CT drives timing — don't schedule individual-MP3 advance
   if (VN.mode === 'off' || ST.paused || ST.mode === 'man' || ST.addrMode) return;
   clearTimeout(ST.advTimer);
   clearInterval(ST.advTimer);
@@ -2403,21 +2404,33 @@ function pnTryPlay(p, txt, preDelay = 1200) {
 // generate_continuous.js) plays exactly like mantra.mp3 — a single
 // native <audio> element that never needs JS to advance.
 //
-// Flow:
-//   screen locks   → ctStartBackground(): switches to continuous track,
-//                    seeks to the timestamp matching the current pointer
-//   screen unlocks → ctStopBackground(): reads currentTime, syncs
-//                    ST.cur to the correct pointer, resumes individual MP3s
+// CRITICAL DESIGN RULE:
+//   CT must be ALREADY PLAYING before the screen locks.
+//   Starting audio inside visibilitychange 'hidden' is too late — iOS
+//   has already begun suspending the page. Instead, ctStart() is called
+//   from showPtr() apply() the moment the first pointer is rendered
+//   (which always happens during an active user gesture).
 //
-// audio/cues.json (generated alongside the MP3s) maps pointer gi/pi to
-// start timestamps in each continuous track, enabling accurate visual sync.
+// Flow:
+//   first pointer shown → ctStart(p): seeks to pointer's cue timestamp,
+//                          starts playback, launches _ctSyncPointer interval
+//   running             → _ctSyncPointer (every 750ms): reads currentTime,
+//                          calls showPtr(true) when next pointer begins
+//   screen locks        → CT is already playing; iOS keeps it alive
+//   screen unlocks      → visibilitychange 'visible': restart sync interval
+//   pause button        → CT.el.pause(); on resume: CT.el.play()
+//   level / mode change → ctStop(), next showPtr() re-starts fresh
+//
+// audio/cues.json maps pointer gi/pi to start timestamps in each track.
 // ═══════════════════════════════════════════════════════════════════════════════
 const CT = {
-  el:     null,   // <audio id="ct-audio">
-  cues:   null,   // loaded from audio/cues.json at startup
-  level:  null,   // track key currently loaded ('all_levels'|'beginner'|…)
-  active: false,  // true while playing in background (screen locked)
+  el:       null,   // <audio id="ct-audio">
+  cues:     null,   // loaded from audio/cues.json at startup
+  level:    null,   // track key currently loaded ('all_levels'|'beginner'|…)
+  active:   false,  // true while CT is the audio driver
+  starting: false,  // true while play() promise is pending (prevents double-start)
 };
+let _ctSyncTimer = null;
 
 function ctInit() {
   CT.el = document.getElementById('ct-audio');
@@ -2462,38 +2475,58 @@ function _ctPointerAtTime(t, key) {
   return found;
 }
 
-// Called when screen locks: stop individual MP3s, start continuous track
-function ctStartBackground() {
-  if (!CT.el || !CT.cues || VN.mode === 'off' || ST.paused) return false;
-  const key = _ctLevelKey();
-  if (!CT.cues[key] || !CT.cues[key].length) return false;
-
+// Poll CT playback position every 750ms; update visual pointer when cue changes.
+function _ctSyncPointer() {
+  if (!CT.active || !CT.el || CT.el.paused) return;
+  const t   = CT.el.currentTime;
+  const cue = _ctPointerAtTime(t, CT.level);
+  if (!cue) return;
   const pool = getPool();
-  if (!pool.length) return false;
-  const cur = pool[ST.cur % pool.length];
+  const idx  = pool.findIndex(p => p.gi === cue.gi && p.pi === cue.pi);
+  if (idx >= 0 && idx !== ST.cur) {
+    ST.cur = idx;
+    showPtr(true); // update visual only — no audio (CT is already playing)
+  }
+}
 
-  // Stop individual narration — CT takes over
+// Start CT from the cue matching pointer p.
+// Called from showPtr() apply() on first pointer render.
+function ctStart(p) {
+  if (!CT.el || !CT.cues || CT.active || CT.starting) return;
+  if (VN.mode === 'off' || ST.addrMode || ST.paused) return;
+  const key = _ctLevelKey();
+  if (!CT.cues[key] || !CT.cues[key].length) return;
+
+  CT.starting = true;
+  CT.level    = key;
+
+  // Stop individual MP3 + silent anchor — CT takes exclusive session ownership
   pnStop();
   if (window.__pnStopSilent) window.__pnStopSilent();
 
-  const startTime = _ctStartTime(cur.gi, cur.pi, key);
+  const startTime = _ctStartTime(p.gi, p.pi, key);
   CT.el.src         = _ctTrackFile(key);
-  CT.level          = key;
   CT.el.currentTime = startTime;
 
   CT.el.play().then(() => {
-    CT.active = true;
+    CT.starting = false;
+    CT.active   = true;
+    // CT is now the iOS audio session holder — mantra.mp3-equivalent
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
-  }).catch(() => { CT.active = false; });
-
-  return true;
+    // Start visual sync interval
+    if (_ctSyncTimer) clearInterval(_ctSyncTimer);
+    _ctSyncTimer = setInterval(_ctSyncPointer, 750);
+  }).catch(() => {
+    CT.starting = false;
+    CT.active   = false;
+  });
 }
 
-// Called when screen unlocks: sync pointer position, stop continuous track
-function ctStopBackground() {
+// Stop CT, clear sync timer. Syncs ST.cur from playback position before stopping.
+function ctStop() {
+  if (_ctSyncTimer) { clearInterval(_ctSyncTimer); _ctSyncTimer = null; }
   if (!CT.el) return;
   if (CT.active) {
-    // Sync visual pointer from CT playback position
     const t   = CT.el.currentTime;
     const cue = _ctPointerAtTime(t, CT.level);
     if (cue) {
@@ -2502,8 +2535,9 @@ function ctStopBackground() {
       if (idx >= 0) ST.cur = idx;
     }
     CT.el.pause();
-    CT.active = false;
   }
+  CT.active   = false;
+  CT.starting = false;
   try { CT.el.src = ''; CT.el.load(); } catch(e) {}
 }
 
@@ -2695,6 +2729,7 @@ function vnUnlockIOS() {
 function vnSetMode(mode) {
   VN.mode = mode;
   vnStop();
+  ctStop(); // stop CT when mode changes; next showPtr() will re-start appropriately
   if (mode !== 'off') abStop(); // cross-stop: narration on → halt mantra
   if (mode !== 'off') {
     // iOS requires speech inside a user gesture — this chip tap IS one.
@@ -2702,15 +2737,19 @@ function vnSetMode(mode) {
     vnUnlockIOS();
     // Stop any existing timer — narration drives advance now.
     clearInterval(ST.advTimer); clearTimeout(ST.advTimer);
-    // Speak the current pointer immediately so narration-driven advance starts.
-    // Delay 900ms: allows iOS unlock to settle before real speech begins.
+    // Start CT or individual narration for the current pointer.
+    // Delay 900ms: allows iOS audio context to settle before playback begins.
     setTimeout(() => {
       if (VN.mode !== 'off' && !ST.addrMode && !ST.paused) {
         const pool = getPool();
         const ptr = pool[ST.cur % pool.length];
         if (ptr) {
-          const txt = (ptr.text && (ptr.text[ST.lang] || ptr.text.en)) || '';
-          if (txt) vnSpeak(txt, 0); // preDelay=0 since we already waited 900ms
+          if (CT.cues && !CT.active && !CT.starting) {
+            ctStart(ptr); // preferred: continuous track survives iOS lock screen
+          } else {
+            const txt = (ptr.text && (ptr.text[ST.lang] || ptr.text.en)) || '';
+            if (txt) { if (!pnTryPlay(ptr, txt, 0)) vnSpeak(txt, 0); }
+          }
         }
       }
     }, 900);
@@ -2933,13 +2972,23 @@ function showPtr(instant = false) {
     q('btn-fav').setAttribute('aria-label', isFav ? 'Remove from saved' : 'Save pointer');
     syncDots();
     ST.ptrShownAt = Date.now(); // track when pointer was shown (used for lock-screen catch-up)
-    // Narration: try native MP3 first (lock-screen safe on iPhone).
-    // pnTryPlay returns false when VN.mode='off', no file path, or PN not ready —
-    // in those cases fall through to speechSynthesis directly.
-    // When it returns true, pnTryPlay handles playback and falls back to
-    // vnSpeak internally if the MP3 file isn't found.
-    if (!pnTryPlay(p, txt)) {
-      vnSpeak(txt);  // speechSynthesis — used when narration is off, or addr mode
+    // Narration: CT (continuous track) takes priority when cues are loaded —
+    // it starts playing immediately and survives iOS lock screen without any
+    // JS timers. If CT is already active (called from _ctSyncPointer for
+    // visual update), we skip audio entirely. If CT is not yet running and
+    // cues are available, ctStart() launches it from this pointer's timestamp.
+    // Fall back to individual MP3s (pnTryPlay) or speechSynthesis if CT fails.
+    if (CT.active || CT.starting) {
+      // CT is the audio driver — visual already updated above, nothing more needed
+    } else if (!ST.addrMode && VN.mode !== 'off' && CT.cues) {
+      ctStart(p); // start CT from this pointer (user gesture context)
+      // ctStart is async; if it fails, the next showPtr call will try again.
+      // We intentionally skip pnTryPlay here — avoid two audio streams.
+    } else {
+      // CT not available (addrMode, cues not loaded, VN off) — individual MP3 fallback
+      if (!pnTryPlay(p, txt)) {
+        vnSpeak(txt); // speechSynthesis — used when narration is off, or addr mode
+      }
     }
   }
 
@@ -3003,6 +3052,7 @@ function endAddressing() {
 // SESSION CONTROLS
 // ═══════════════════════════════════════════════════════════════
 function next() {
+  if (CT.active) return; // CT drives its own timing — don't let JS timer conflict
   if (ST.addrMode) { nextAddr(); return; }
   const pool = getPool();
   if (!pool.length) return;
@@ -3013,6 +3063,7 @@ function next() {
 function resetAdv() {
   clearInterval(ST.advTimer);
   clearTimeout(ST.advTimer);
+  if (CT.active) return; // CT drives timing — no fallback timer needed
   if (ST.paused || ST.mode === 'man') return;
   // Always run the fallback timer regardless of narration mode.
   // If narration works, its onend handler clears this timer and takes over.
@@ -3276,6 +3327,7 @@ function showNextTask() {
 function startMeditating() {
   q('task-card').classList.remove('on');
   ST.sessStart = Date.now();
+  ctStop(); // stop any previous CT (level change, screen change); showPtr will re-start
   showPtr(true);   // always show current pointer immediately — no blank screen
   resetAdv();
   if (!ST.paused && ST.mode !== 'man' && VN.mode === 'off') arcStart();
@@ -3382,9 +3434,26 @@ q('btn-pause').addEventListener('click', () => {
   q('btn-pause').textContent = ST.paused ? '▶' : '⏸';
   q('btn-pause').setAttribute('aria-label', ST.paused ? 'Resume session' : 'Pause session');
   if (ST.paused) {
-    clearInterval(ST.advTimer); arcPause(); vnStop();
+    clearInterval(ST.advTimer); arcPause(); vnStop(); pnStop();
+    // Pause CT but keep it loaded — resume will call CT.el.play()
+    if (CT.active && CT.el) {
+      if (_ctSyncTimer) { clearInterval(_ctSyncTimer); _ctSyncTimer = null; }
+      CT.el.pause();
+    }
     q('controls').style.opacity = '1'; q('dots').style.opacity = '1'; q('sound-lbl').style.opacity = '1';
-  } else { resetAdv(); arcStart(); showCtrl(); }
+  } else {
+    // Resume CT if it was the audio driver
+    if (CT.active && CT.el && CT.el.paused) {
+      CT.el.play().then(() => {
+        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+        if (_ctSyncTimer) clearInterval(_ctSyncTimer);
+        _ctSyncTimer = setInterval(_ctSyncPointer, 750);
+      }).catch(() => {});
+    } else {
+      resetAdv();
+    }
+    arcStart(); showCtrl();
+  }
 });
 q('btn-sound').addEventListener('click', () => {
   ensureAudio();
@@ -4325,19 +4394,12 @@ window.addEventListener('appinstalled', () => {
     if (document.visibilityState === 'hidden') {
       _lockedAt = Date.now();
 
-      // ── Switch to continuous track for iOS lock-screen background audio ──
-      // Individual MP3s require JS setTimeout to advance — JS is suspended
-      // on lock. CT plays like a podcast: one file, no JS needed.
-      const ctStarted = (ST.screen === 'meditate' && !ST.paused && VN.mode !== 'off')
-                        ? ctStartBackground()
-                        : false;
-
-      // If CT took over, silentEl is not needed (CT is the session holder).
-      // If CT is not available, fall back to silentEl anchor.
-      if (!ctStarted && (!PN.el || PN.el.paused)) _startSilent();
+      // CT should already be playing (started when first pointer was shown).
+      // If CT is not active yet (cues not loaded, narration off) fall back to silentEl.
+      if (!CT.active && (!PN.el || PN.el.paused)) _startSilent();
 
       if ('mediaSession' in navigator) {
-        const anyPlaying = AB.isPlaying || ctStarted || (PN.el && !PN.el.paused);
+        const anyPlaying = AB.isPlaying || CT.active || (PN.el && !PN.el.paused);
         navigator.mediaSession.playbackState = anyPlaying ? 'playing' : 'paused';
       }
       return;
@@ -4357,12 +4419,13 @@ window.addEventListener('appinstalled', () => {
       AB.mantraAudioEl.play().catch(() => {});
     }
 
-    // 3. Stop CT and sync pointer — CT ran while locked, resume individual MP3s
+    // 3. CT has been playing through the lock — restart sync interval and
+    //    immediately sync visual pointer to CT's current playback position.
     if (CT.active) {
-      ctStopBackground();           // syncs ST.cur from CT.el.currentTime
-      if (ST.screen === 'meditate' && !ST.paused) showPtr(true);
-      resetAdv();
-      return;  // skip old catch-up logic — CT already synced position
+      if (_ctSyncTimer) clearInterval(_ctSyncTimer);
+      _ctSyncTimer = setInterval(_ctSyncPointer, 750);
+      _ctSyncPointer(); // immediate sync to catch up any pointer changes
+      return;  // CT is still running — no catch-up logic needed
     }
 
     // 4. Catch up Meditate pointer advancement (fallback: CT not available)
@@ -4414,9 +4477,12 @@ window.addEventListener('appinstalled', () => {
     // Lock-screen transport controls (iOS 15+)
     // Primary job: resume the native <audio> element if it somehow got paused.
     navigator.mediaSession.setActionHandler('play', () => {
-      // Resume continuous track if it was paused by iOS on lock screen
+      // Resume CT if iOS paused it on lock screen (it should survive, but belt+braces)
       if (CT.active && CT.el && CT.el.paused) {
-        CT.el.play().catch(() => {});
+        CT.el.play().then(() => {
+          if (_ctSyncTimer) clearInterval(_ctSyncTimer);
+          _ctSyncTimer = setInterval(_ctSyncPointer, 750);
+        }).catch(() => {});
       }
       if (AB.mantraAudioEl && AB.mantraAudioEl.paused && AB.isPlaying) {
         AB.mantraAudioEl.volume = AB.vols.mantra;
