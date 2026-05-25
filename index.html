@@ -4142,10 +4142,10 @@ window.addEventListener('appinstalled', () => {
 
   // ── Silent <audio> anchor for Meditate tab ─────────────────────
   // Keeps the iOS audio session alive between pointer narrations.
-  // Using mantra.mp3 (a real file iOS recognises as media) at near-zero
+  // silence.mp3 is a 3-second silent MP3 that loops forever at near-zero
   // volume. Data-URL minimal MP3s are NOT reliable session anchors on iOS —
   // iOS 16+ ignores them and kills the audio session in the gaps.
-  const silentEl = new Audio('./mantra.mp3');
+  const silentEl = new Audio('./silence.mp3');
   silentEl.loop   = true;
   silentEl.volume = 0.001;
   silentEl.setAttribute('playsinline', '');
