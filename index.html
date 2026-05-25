@@ -2289,14 +2289,15 @@ function pnInit() {
 // back to the MP3 file at full volume.
 function _pnAnchorStart() {
   if (!PN.el) return;
-  // Stop competing silentEl FIRST — iOS only keeps one <audio> as session holder.
   if (window.__pnStopSilent) window.__pnStopSilent();
   PN.el.onended = null;
   PN.el.onerror = null;
   PN.el.loop   = true;
   PN.el.volume = 0.001;
   PN.el.src    = './anchor.mp3';
-  PN.el.play().catch(() => {});
+  PN.el.play().then(() => {
+    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+  }).catch(() => {});
 }
 
 // Stop all PN activity immediately (safe to call anytime).
@@ -2373,9 +2374,10 @@ function pnTryPlay(p, txt, preDelay = 1200) {
       .then(() => {
         PN.active = true;
         vnSetDot(true);
-        // Stop silentEl immediately — iOS only keeps ONE <audio> as the
-        // lock-screen session holder. pn-audio is now that holder.
+        // Stop silentEl — pn-audio is now the session holder
         if (window.__pnStopSilent) window.__pnStopSilent();
+        // Tell iOS this session is actively playing so it survives lock screen
+        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
       })
       .catch(() => {
         // play() rejected (file missing, format error, etc.) — fall back
@@ -4209,9 +4211,12 @@ window.addEventListener('appinstalled', () => {
       // If pn-audio is the session holder, touching silentEl causes iOS
       // to switch session ownership and may pause pn-audio on lock.
       if (!PN.el || PN.el.paused) _startSilent();
-      // Update MediaSession state so lock screen shows correct controls
+      // Update MediaSession state so lock screen shows correct controls.
+      // CRITICAL: must reflect pn-audio too — if AB is not playing but narration
+      // is active, playbackState must still be 'playing' or iOS kills the session.
       if ('mediaSession' in navigator) {
-        navigator.mediaSession.playbackState = AB.isPlaying ? 'playing' : 'paused';
+        const pnPlaying = PN.el && !PN.el.paused;
+        navigator.mediaSession.playbackState = (AB.isPlaying || pnPlaying) ? 'playing' : 'paused';
       }
       return;
     }
