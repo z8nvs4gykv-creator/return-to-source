@@ -1104,13 +1104,14 @@ canvas#ab-waveform{width:100%;max-width:420px;height:40px;opacity:.5}
   </div><!-- /ab-wrap -->
 </div><!-- /s-mantra -->
 
-<!-- Native audio element — iOS treats this as a media player, allowing
-     background playback when screen locks.
-     CRITICAL: Do NOT route through createMediaElementSource() — doing so
-     makes iOS stop playback when the AudioContext suspends on lock screen.
-     Volume is controlled via audioEl.volume (native), not Web Audio gain. -->
+<!-- Mantra audio — native, NOT in Web Audio graph (survives iOS lock screen) -->
 <audio id="ab-mantra-audio" src="./mantra.mp3" loop playsinline
        preload="metadata" style="display:none"></audio>
+
+<!-- Pointer narration audio — plays individual pointer MP3s natively.
+     NOT routed through Web Audio so iOS keeps it playing on lock screen.
+     src is set dynamically as each pointer is shown. -->
+<audio id="pn-audio" playsinline preload="none" style="display:none"></audio>
 </div><!-- #app -->
 
 <!-- ── NAV ── -->
@@ -2004,7 +2005,12 @@ let _off = 0;
 GROUPS.forEach((g, gi) => {
   GROUP_OFFSETS[gi] = _off;
   g.pointers.forEach((p, pi) => {
-    ALL.push({ text: p, group: g.label, gi, pi, isFirst: pi === 0, minLevel: g.minLevel || 'beginner' });
+    // audio: stable filename — ptr_g{GI}_p{PI}.mp3  e.g. audio/ptr_g00_p03.mp3
+    // Upload files to the audio/ folder beside index.html to enable MP3 narration.
+    // speechSynthesis is used automatically if the file is absent.
+    const audioFile = 'audio/ptr_g' + String(gi).padStart(2,'0') + '_p' + String(pi).padStart(2,'0') + '.mp3';
+    ALL.push({ text: p, group: g.label, gi, pi, isFirst: pi === 0,
+               minLevel: g.minLevel || 'beginner', audio: audioFile });
   });
   _off += g.pointers.length;
 });
@@ -2245,6 +2251,117 @@ const VN = {
   pauseTimer: null,          // pre-speech delay handle
 };
 
+// ═══════════════════════════════════════════════════════════════
+// PN — POINTER NATIVE AUDIO NARRATION
+// ─────────────────────────────────────────────────────────────
+// Plays individual pointer MP3 files via a native <audio> element.
+// The element is NEVER routed through Web Audio (no createMediaElementSource),
+// so iOS Safari treats it as a native media player and continues playback
+// when the screen locks — identical to how mantra.mp3 works.
+//
+// Filename convention: audio/ptr_g{GI}_p{PI}.mp3
+//   GI = group index (2 digits, zero-padded)
+//   PI = pointer index within group (2 digits, zero-padded)
+//   e.g. audio/ptr_g00_p03.mp3, audio/ptr_g05_p01.mp3
+//
+// If the file is absent (404) or fails to play, the onerror / catch handler
+// falls back to speechSynthesis automatically — no user-visible error.
+//
+// Activation: enabled whenever VN.mode !== 'off' (same toggle as speechSynthesis).
+// ═══════════════════════════════════════════════════════════════
+const PN = {
+  el:           null,  // <audio id="pn-audio"> — set by pnInit()
+  active:       false, // true while MP3 is playing or post-pause timer pending
+  pauseTimer:   null,  // setTimeout: silence gap after MP3 ends, before next()
+  preDelayTimer:null,  // setTimeout: mirrors vnSpeak preDelay before play starts
+};
+
+function pnInit() {
+  PN.el = document.getElementById('pn-audio');
+}
+
+// Stop all PN activity immediately (safe to call anytime).
+function pnStop() {
+  clearTimeout(PN.pauseTimer);
+  clearTimeout(PN.preDelayTimer);
+  PN.pauseTimer = null;
+  PN.preDelayTimer = null;
+  PN.active = false;
+  if (PN.el) {
+    PN.el.onended = null;
+    PN.el.onerror = null;
+    PN.el.pause();
+    try { PN.el.src = ''; PN.el.load(); } catch(e) {}
+  }
+}
+
+// Post-audio silence gap: same durations as vnKeepAlive afterFn.
+// Called when MP3 playback ends; clears the fallback timer, sets a new
+// timeout, then auto-advances to the next pointer.
+function _pnScheduleAdvance() {
+  if (VN.mode === 'off' || ST.paused || ST.mode === 'man' || ST.addrMode) return;
+  clearTimeout(ST.advTimer);
+  clearInterval(ST.advTimer);
+  const pool = getPool();
+  const curPtr = pool[ST.cur % pool.length];
+  const effectiveLevel = ST.level === 'all' ? (curPtr ? curPtr.minLevel : 'beginner') : ST.level;
+  const pauseMs = (effectiveLevel === 'advanced' || effectiveLevel === 'sahaja') ? 32000
+                : effectiveLevel === 'seeker' ? 22000 : 10000;
+  PN.pauseTimer = setTimeout(() => {
+    PN.pauseTimer = null;
+    if (!ST.paused && VN.mode !== 'off') next();
+  }, pauseMs);
+  ST.advTimer = PN.pauseTimer;  // keep in sync so meditateStop() can clear it
+}
+
+// Try to play the MP3 for pointer p.
+// Returns false immediately (→ caller should use vnSpeak) when:
+//   • VN.mode is 'off'   (narration disabled)
+//   • PN.el not ready    (pnInit not called yet)
+//   • p.audio is absent  (no filename on this pointer)
+// Otherwise returns true and handles everything: playback → advance scheduling,
+// and falls back to vnSpeak(txt) internally if the file errors or play() rejects.
+function pnTryPlay(p, txt, preDelay = 1200) {
+  if (VN.mode === 'off' || !PN.el || !p || !p.audio) return false;
+  pnStop();  // cancel any previous pointer's audio + timers
+
+  PN.preDelayTimer = setTimeout(() => {
+    PN.preDelayTimer = null;
+    PN.el.src = p.audio;
+
+    function _onEnded() {
+      PN.active = false;
+      vnSetDot(false);
+      _pnScheduleAdvance();
+    }
+    function _onError() {
+      // File not found or decode error — fall back to speechSynthesis silently
+      PN.active = false;
+      vnSetDot(false);
+      pnStop();
+      vnSpeak(txt, 0);  // 0 preDelay — we already waited
+    }
+
+    PN.el.onended = _onEnded;
+    PN.el.onerror = _onError;
+
+    PN.el.play()
+      .then(() => {
+        PN.active = true;
+        vnSetDot(true);
+      })
+      .catch(() => {
+        // play() rejected (file missing, format error, etc.) — fall back
+        PN.active = false;
+        PN.el.onended = null;
+        PN.el.onerror = null;
+        vnSpeak(txt, 0);
+      });
+  }, preDelay);
+
+  return true;  // PN is handling this pointer (MP3 or async fallback)
+}
+
 // ── Load / rank available voices ────────────────────────────────
 function vnLoadVoices() {
   if (!VN.supported) return;
@@ -2314,13 +2431,15 @@ function vnPopulateSelect() {
   });
 }
 
-// ── Stop any current speech immediately ─────────────────────────
+// ── Stop any current speech + native pointer audio immediately ──
 function vnStop() {
   clearTimeout(VN.pauseTimer);
   VN.pauseTimer = null;
-  if (!VN.supported) return;
-  try { speechSynthesis.cancel(); } catch {}
+  if (VN.supported) {
+    try { speechSynthesis.cancel(); } catch {}
+  }
   VN.speaking = false;
+  pnStop();       // also stop native MP3 narration
   vnSetDot(false);
 }
 
@@ -2669,7 +2788,14 @@ function showPtr(instant = false) {
     q('btn-fav').setAttribute('aria-label', isFav ? 'Remove from saved' : 'Save pointer');
     syncDots();
     ST.ptrShownAt = Date.now(); // track when pointer was shown (used for lock-screen catch-up)
-    vnSpeak(txt);  // speak after text is set
+    // Narration: try native MP3 first (lock-screen safe on iPhone).
+    // pnTryPlay returns false when VN.mode='off', no file path, or PN not ready —
+    // in those cases fall through to speechSynthesis directly.
+    // When it returns true, pnTryPlay handles playback and falls back to
+    // vnSpeak internally if the MP3 file isn't found.
+    if (!pnTryPlay(p, txt)) {
+      vnSpeak(txt);  // speechSynthesis — used when narration is off, or addr mode
+    }
   }
 
   if (instant) {
@@ -3992,7 +4118,8 @@ window.addEventListener('appinstalled', () => {
   renderProgressDisplay();
   setActiveChip('lang-chips', ST.lang);
   refreshUI();
-  vnInit();       // initialise voice narration engine
+  vnInit();       // initialise voice narration engine (speechSynthesis)
+  pnInit();       // initialise pointer native-audio narration engine
 
   // Always start meditating immediately — default level is 'all'.
   // User can change level via the level strip on the meditate screen at any time.
@@ -4014,14 +4141,15 @@ window.addEventListener('appinstalled', () => {
 (function initBackgroundAudio() {
 
   // ── Silent <audio> anchor for Meditate tab ─────────────────────
-  // Keeps the iOS audio session alive when only Web Audio is playing
-  // (no <audio> element active). Activated on first user tap.
-  // Uses the shortest valid MP3 (44 bytes, ~0.023 s, loops forever).
-  const SILENT = 'data:audio/mpeg;base64,'
-    + '/+MYxAAAAANIAAAAAExBTUUzLjk4LjIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
-  const silentEl = new Audio(SILENT);
+  // Keeps the iOS audio session alive between pointer narrations.
+  // Using mantra.mp3 (a real file iOS recognises as media) at near-zero
+  // volume. Data-URL minimal MP3s are NOT reliable session anchors on iOS —
+  // iOS 16+ ignores them and kills the audio session in the gaps.
+  const silentEl = new Audio('./mantra.mp3');
   silentEl.loop   = true;
   silentEl.volume = 0.001;
+  silentEl.setAttribute('playsinline', '');
+  silentEl.setAttribute('webkit-playsinline', '');
   let _silentGoing = false;
   function _startSilent() {
     if (_silentGoing) return;
@@ -4060,6 +4188,13 @@ window.addEventListener('appinstalled', () => {
     if (AB.isPlaying && AB.mantraAudioEl && AB.mantraAudioEl.paused) {
       AB.mantraAudioEl.volume = AB.vols.mantra;
       AB.mantraAudioEl.play().catch(() => {});
+    }
+
+    // 2b. Resume pointer narration audio if it was playing through the lock.
+    //     Same native-audio logic: iOS should have kept it running, but
+    //     we defensively resume in case it was paused.
+    if (PN.active && PN.el && PN.el.paused) {
+      PN.el.play().catch(() => {});
     }
 
     // 3. Catch up Meditate pointer advancement
