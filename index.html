@@ -881,6 +881,13 @@ canvas#ab-waveform{width:100%;max-width:420px;height:40px;opacity:.5}
           <span data-ui="voiceTest">Test Voice</span>
         </button>
         <div class="voice-compat-note" id="voice-compat-note"></div>
+        <div id="ios-narr-note" style="display:none;margin-top:.6rem;font-size:.72rem;
+             line-height:1.5;color:var(--txt3);padding:.5rem .6rem;border-radius:8px;
+             background:rgba(77,184,212,0.06);border:1px solid rgba(77,184,212,0.12)">
+          ⚠ On iPhone, voice narration uses the browser's speech engine which
+          pauses when the screen locks. The mantra chanting will keep playing,
+          but spoken pointer narration stops until you unlock the screen.
+        </div>
       </div>
     </div>
     <div class="set-grp">
@@ -1098,10 +1105,12 @@ canvas#ab-waveform{width:100%;max-width:420px;height:40px;opacity:.5}
 </div><!-- /s-mantra -->
 
 <!-- Native audio element — iOS treats this as a media player, allowing
-     background playback when screen locks. Routed through Web Audio for
-     reverb/gain control via createMediaElementSource(). -->
+     background playback when screen locks.
+     CRITICAL: Do NOT route through createMediaElementSource() — doing so
+     makes iOS stop playback when the AudioContext suspends on lock screen.
+     Volume is controlled via audioEl.volume (native), not Web Audio gain. -->
 <audio id="ab-mantra-audio" src="./mantra.mp3" loop playsinline
-       preload="none" style="display:none"></audio>
+       preload="metadata" style="display:none"></audio>
 </div><!-- #app -->
 
 <!-- ── NAV ── -->
@@ -2444,6 +2453,12 @@ function vnSetMode(mode) {
   }
   toggleVoiceControls(mode !== 'off');
   vnUpdateCompatNote();
+  // Show iPhone narration lock-screen warning when narration is active
+  const _iosNote = document.getElementById('ios-narr-note');
+  if (_iosNote) {
+    const _isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    _iosNote.style.display = (_isIOS && mode !== 'off') ? 'block' : 'none';
+  }
   // Sync settings chips
   document.querySelectorAll('#narr-chips .chip').forEach(c => c.classList.toggle('on', c.dataset.v === mode));
   // Sync mini chips on meditate screen
@@ -3450,8 +3465,8 @@ const AB = {
   mantraSeq:      null,
   analyser:       null,
   analyserData:   null,
-  mantraAudioEl:  null,   // <audio> element — iOS-native background playback
-  mantraMediaSrc: null,   // MediaElementAudioSourceNode (Web Audio route)
+  mantraAudioEl:   null,  // <audio> element — plays natively (survives iOS lock screen)
+  _mantraFadeTimer: null, // setInterval handle for native volume fades
   _dispTimer1: null,
   _dispTimer2: null,
   MODES: {
@@ -3561,18 +3576,22 @@ function abStrikeBowl(time, vol) {
 
 /* ══════════════════════════════════════════════════════════════════════════
    REAL HUMAN CHANTING ENGINE — "Aham Brahmasmi" × 108
-   Source: <audio id="ab-mantra-audio"> (iOS-native, keeps playing on lock)
-   Routed through Web Audio via MediaElementSource for reverb + gain control.
+   Source: <audio id="ab-mantra-audio"> plays NATIVELY — not through Web Audio.
+   WHY: createMediaElementSource() routes the element through the AudioContext.
+   iOS Safari suspends the AudioContext when the screen locks, which silences
+   the audio even though the element is still "playing". By keeping the element
+   out of the Web Audio graph it is treated as a native media player, exactly
+   like a podcast app, and iOS lets it continue on the lock screen.
+   Volume is controlled via audioEl.volume (0–1) rather than a GainNode.
    ══════════════════════════════════════════════════════════════════════════ */
 
-// Wire the <audio> element into the Web Audio graph.
-// Must be called once, inside a user-gesture handler (abInitAudio → abTogglePlay click).
+// Grab the <audio> element and prepare it. Called once from abInitAudio().
 function abSetupMantraAudio() {
   const audioEl = document.getElementById('ab-mantra-audio');
-  if (!audioEl || !AB.audioCtx) return;
+  if (!audioEl) return;
   AB.mantraAudioEl = audioEl;
+  audioEl.volume = 0;  // will fade in on play
   const note = document.getElementById('ab-loadNote');
-  // Show loading indicator while the browser buffers the file
   if (note) { note.textContent = 'Loading chant…'; note.style.opacity = '1'; }
   audioEl.addEventListener('canplaythrough', () => {
     if (note) { note.textContent = '✓ Chant ready'; setTimeout(() => { note.style.opacity = '0'; }, 2500); }
@@ -3580,26 +3599,43 @@ function abSetupMantraAudio() {
   audioEl.addEventListener('error', () => {
     if (note) { note.textContent = '⚠ mantra.mp3 not found'; note.style.opacity = '1'; }
   }, { once: true });
-  // createMediaElementSource can only be called once per element — guard it
-  if (!AB.mantraMediaSrc) {
-    try {
-      AB.mantraMediaSrc = AB.audioCtx.createMediaElementSource(audioEl);
-      AB.mantraMediaSrc.connect(AB.mantraGain);
-    } catch(e) { console.warn('abSetupMantraAudio:', e); }
-  }
+  // DO NOT call createMediaElementSource() here — see comment above.
 }
 
-// Start / resume the native <audio> element
+// Native volume fade helper — replaces Web Audio GainNode ramps for mantra.
+// Fades audioEl.volume from its current value to targetVol over durationMs.
+function _fadeMantraVol(targetVol, durationMs, onDone) {
+  if (!AB.mantraAudioEl) { if (onDone) onDone(); return; }
+  const startVol  = AB.mantraAudioEl.volume;
+  const startTime = performance.now();
+  clearInterval(AB._mantraFadeTimer);
+  AB._mantraFadeTimer = setInterval(() => {
+    const progress = Math.min(1, (performance.now() - startTime) / durationMs);
+    AB.mantraAudioEl.volume = startVol + (targetVol - startVol) * progress;
+    if (progress >= 1) {
+      clearInterval(AB._mantraFadeTimer);
+      AB._mantraFadeTimer = null;
+      if (onDone) onDone();
+    }
+  }, 50);
+}
+
+// Start native <audio> playback at volume 0, then fade up.
+// Because the element is NOT in the Web Audio graph, iOS Safari will
+// continue playing it as a native media player when the screen locks.
 function abPlayMantra() {
   if (!AB.mantraAudioEl) return;
+  AB.mantraAudioEl.volume = 0;
   AB.mantraAudioEl.play().catch(e => console.warn('abPlayMantra:', e));
+  _fadeMantraVol(AB.vols.mantra, 8000);  // 8-second fade-in
 }
 
-// Pause and reset the native <audio> element
+// Fade out native volume then pause.
 function abStopMantraSource() {
-  if (AB.mantraAudioEl && !AB.mantraAudioEl.paused) {
-    AB.mantraAudioEl.pause();
-  }
+  if (!AB.mantraAudioEl || AB.mantraAudioEl.paused) return;
+  _fadeMantraVol(0, 3500, () => {
+    if (AB.mantraAudioEl) AB.mantraAudioEl.pause();
+  });
 }
 
 function abStartBinaural(beatFreq) {
@@ -3760,10 +3796,9 @@ function abPlay() {
   // Opening bowl strike
   abStrikeBowl(AB.audioCtx.currentTime + 1.0, 0.7);
 
-  // Start real human chanting — <audio> element plays natively (keeps going on lock)
-  AB.mantraGain.gain.cancelScheduledValues(AB.audioCtx.currentTime);
-  AB.mantraGain.gain.setValueAtTime(0, AB.audioCtx.currentTime);
-  AB.mantraGain.gain.linearRampToValueAtTime(AB.vols.mantra, AB.audioCtx.currentTime + 8);
+  // Start real human chanting — native <audio>, volume fades in over 8 s
+  // (volume is controlled via audioEl.volume, NOT the Web Audio mantraGain,
+  //  so iOS lock screen does NOT silence it when AudioContext suspends)
   abPlayMantra();
 
   // Start visual cycle after short intro delay
@@ -3796,14 +3831,8 @@ function abPause() {
   clearTimeout(AB._dispTimer1);
   clearTimeout(AB._dispTimer2);
   clearInterval(AB.sessionTimer);
-  // Fade out real chanting MP3 then stop the source node
-  if (AB.mantraGain && AB.audioCtx) {
-    const t = AB.audioCtx.currentTime;
-    AB.mantraGain.gain.cancelScheduledValues(t);
-    AB.mantraGain.gain.setValueAtTime(AB.mantraGain.gain.value, t);
-    AB.mantraGain.gain.linearRampToValueAtTime(0, t + 3.5);
-    setTimeout(abStopMantraSource, 3600);
-  }
+  // Fade out native mantra audio then pause (native volume, not Web Audio)
+  abStopMantraSource();
   const aw = document.getElementById('ab-wAham');
   const bw = document.getElementById('ab-wBrahma');
   const d1 = document.getElementById('ab-dot1');
@@ -3869,7 +3898,8 @@ function abUpdateVol(layer, val) {
   if (layer === 'tanpura'  && AB.tanpuraGain)  AB.tanpuraGain.gain.setTargetAtTime(v * 0.4, t, 0.5);
   if (layer === 'bowl'     && AB.bowlGain)     AB.bowlGain.gain.setTargetAtTime(v, t, 0.5);
   if (layer === 'reverb'   && AB.reverbGain)   AB.reverbGain.gain.setTargetAtTime(v * 0.8, t, 0.5);
-  if (layer === 'mantra'   && AB.mantraGain)   AB.mantraGain.gain.setTargetAtTime(v, t, 0.5);
+  // Mantra uses native audioEl.volume (not Web Audio), so iOS lock screen works
+  if (layer === 'mantra'   && AB.mantraAudioEl && !AB.mantraAudioEl.paused) AB.mantraAudioEl.volume = v;
   if (layer === 'binaural' && AB.binauralGain) AB.binauralGain.gain.setTargetAtTime(v * 0.3, t, 0.5);
 }
 
@@ -4007,8 +4037,12 @@ window.addEventListener('appinstalled', () => {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
       _lockedAt = Date.now();
-      // Make sure silent anchor is running so iOS doesn't end the session
+      // Ensure silent anchor is looping so iOS audio session stays alive
       _startSilent();
+      // Update MediaSession state so lock screen shows correct controls
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = AB.isPlaying ? 'playing' : 'paused';
+      }
       return;
     }
 
@@ -4016,12 +4050,15 @@ window.addEventListener('appinstalled', () => {
     const lockedMs = _lockedAt ? Date.now() - _lockedAt : 0;
     _lockedAt = null;
 
-    // 1. Resume Web Audio contexts (iOS may have suspended them)
+    // 1. Resume Web Audio contexts (suspended by iOS on lock — expected)
     if (ST.audio  && ST.audio.state  === 'suspended') ST.audio.resume().catch(() => {});
     if (AB.audioCtx && AB.audioCtx.state === 'suspended') AB.audioCtx.resume().catch(() => {});
 
-    // 2. Resume mantra <audio> element if it should be playing
+    // 2. Resume mantra <audio> element if iOS paused it on unlock.
+    //    Since the element is NOT in the Web Audio graph, iOS should have
+    //    kept it playing through the lock — but we resume defensively.
     if (AB.isPlaying && AB.mantraAudioEl && AB.mantraAudioEl.paused) {
+      AB.mantraAudioEl.volume = AB.vols.mantra;
       AB.mantraAudioEl.play().catch(() => {});
     }
 
@@ -4074,23 +4111,23 @@ window.addEventListener('appinstalled', () => {
       artist: 'Aham Brahmasmi · Self Inquiry',
       album:  'Meditation'
     });
-    // Mantra tab controls
+    // Lock-screen transport controls (iOS 15+)
+    // Primary job: resume the native <audio> element if it somehow got paused.
     navigator.mediaSession.setActionHandler('play', () => {
+      if (AB.mantraAudioEl && AB.mantraAudioEl.paused && AB.isPlaying) {
+        AB.mantraAudioEl.volume = AB.vols.mantra;
+        AB.mantraAudioEl.play().catch(() => {});
+      }
       if (AB.audioCtx && AB.audioCtx.state === 'suspended') AB.audioCtx.resume().catch(() => {});
-      if (AB.mantraAudioEl && AB.mantraAudioEl.paused && AB.isPlaying) AB.mantraAudioEl.play().catch(() => {});
-      if (!AB.isPlaying) abTogglePlay().catch(() => {});
+      navigator.mediaSession.playbackState = 'playing';
     });
     navigator.mediaSession.setActionHandler('pause', () => {
       if (AB.isPlaying) abPause();
+      navigator.mediaSession.playbackState = 'paused';
     });
     navigator.mediaSession.setActionHandler('stop', () => {
       if (AB.isPlaying) abPause();
-    });
-    // Update playback state so iOS lock screen shows correct icon
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && 'mediaSession' in navigator) {
-        navigator.mediaSession.playbackState = AB.isPlaying ? 'playing' : 'paused';
-      }
+      navigator.mediaSession.playbackState = 'paused';
     });
   }
 })();
