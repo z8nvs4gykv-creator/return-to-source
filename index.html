@@ -2291,6 +2291,7 @@ function pnInit() {
 // back to the MP3 file at full volume.
 function _pnAnchorStart() {
   if (!PN.el) return;
+  if (CT.active || CT.starting) return; // CT owns the session — don't start anchor
   if (window.__pnStopSilent) window.__pnStopSilent();
   PN.el.onended = null;
   PN.el.onerror = null;
@@ -2429,8 +2430,15 @@ const CT = {
   level:    null,   // track key currently loaded ('all_levels'|'beginner'|…)
   active:   false,  // true while CT is the audio driver
   starting: false,  // true while play() promise is pending (prevents double-start)
+  epoch:    0,      // incremented on every ctStop(); stale play().then() callbacks check this
 };
 let _ctSyncTimer = null;
+
+// Debug: log which narration source is active (logged to console only)
+function _ctLog(msg) {
+  console.log('[CT]', msg, '| CT.active='+CT.active, 'CT.starting='+CT.starting,
+    '| PN paused='+(!!(PN.el&&PN.el.paused)), '| SpeechSynth='+(('speechSynthesis' in window)?speechSynthesis.speaking:'n/a'));
+}
 
 function ctInit() {
   CT.el = document.getElementById('ct-audio');
@@ -2499,42 +2507,58 @@ function ctStart(p) {
 
   CT.starting = true;
   CT.level    = key;
+  // Capture epoch BEFORE any async work — ctStop() increments it to invalidate us
+  const myEpoch = ++CT.epoch;
 
-  // Stop individual MP3 + silent anchor — CT takes exclusive session ownership
-  pnStop();
-  if (window.__pnStopSilent) window.__pnStopSilent();
+  // ── Silence ALL other narration sources — CT is the exclusive audio driver ──
+  pnStop();                                            // stop individual pointer MP3
+  if (window.__pnStopSilent) window.__pnStopSilent(); // stop silent anchor loop
+  vnStop();                                            // stop speechSynthesis
+  if ('speechSynthesis' in window) speechSynthesis.cancel(); // belt-and-braces cancel
 
   const startTime = _ctStartTime(p.gi, p.pi, key);
   CT.el.src         = _ctTrackFile(key);
   CT.el.currentTime = startTime;
 
+  _ctLog('ctStart → play() fired for pointer gi='+p.gi+' pi='+p.pi+' t='+startTime.toFixed(1)+'s');
+
   CT.el.play().then(() => {
+    if (CT.epoch !== myEpoch) {
+      // ctStop() was called while play() was pending — discard this callback
+      _ctLog('ctStart play().then() DISCARDED (stale epoch '+myEpoch+' vs '+CT.epoch+')');
+      return;
+    }
     CT.starting = false;
     CT.active   = true;
+    _ctLog('ctStart ACTIVE — CT is now the sole narration source');
     // CT is now the iOS audio session holder — mantra.mp3-equivalent
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
     // Start visual sync interval
     if (_ctSyncTimer) clearInterval(_ctSyncTimer);
     _ctSyncTimer = setInterval(_ctSyncPointer, 750);
-  }).catch(() => {
+  }).catch(err => {
+    if (CT.epoch !== myEpoch) return;
     CT.starting = false;
     CT.active   = false;
+    _ctLog('ctStart play() FAILED: ' + (err && err.message));
   });
 }
 
 // Stop CT, clear sync timer. Syncs ST.cur from playback position before stopping.
 function ctStop() {
+  CT.epoch++;  // invalidate any in-flight ctStart play() callbacks
   if (_ctSyncTimer) { clearInterval(_ctSyncTimer); _ctSyncTimer = null; }
-  if (!CT.el) return;
-  if (CT.active) {
+  if (!CT.el) { CT.active = false; CT.starting = false; return; }
+  if (CT.active || CT.starting) {
+    _ctLog('ctStop — halting CT (active='+CT.active+' starting='+CT.starting+')');
     const t   = CT.el.currentTime;
     const cue = _ctPointerAtTime(t, CT.level);
-    if (cue) {
+    if (cue && CT.active) {
       const pool = getPool();
       const idx  = pool.findIndex(p => p.gi === cue.gi && p.pi === cue.pi);
       if (idx >= 0) ST.cur = idx;
     }
-    CT.el.pause();
+    try { CT.el.pause(); } catch(e) {}
   }
   CT.active   = false;
   CT.starting = false;
@@ -2741,12 +2765,19 @@ function vnSetMode(mode) {
     // Delay 900ms: allows iOS audio context to settle before playback begins.
     setTimeout(() => {
       if (VN.mode !== 'off' && !ST.addrMode && !ST.paused) {
+        // If CT is already active or starting, do nothing — it is the sole audio driver.
+        // This prevents pnTryPlay/vnSpeak firing alongside an already-running CT.
+        if (CT.active || CT.starting) {
+          _ctLog('vnSetMode timer: CT already running — skipping individual MP3 start');
+          return;
+        }
         const pool = getPool();
         const ptr = pool[ST.cur % pool.length];
         if (ptr) {
-          if (CT.cues && !CT.active && !CT.starting) {
+          if (CT.cues) {
             ctStart(ptr); // preferred: continuous track survives iOS lock screen
           } else {
+            // CT cues not yet loaded — fall back to individual MP3 / speechSynthesis
             const txt = (ptr.text && (ptr.text[ST.lang] || ptr.text.en)) || '';
             if (txt) { if (!pnTryPlay(ptr, txt, 0)) vnSpeak(txt, 0); }
           }
@@ -2979,15 +3010,15 @@ function showPtr(instant = false) {
     // cues are available, ctStart() launches it from this pointer's timestamp.
     // Fall back to individual MP3s (pnTryPlay) or speechSynthesis if CT fails.
     if (CT.active || CT.starting) {
-      // CT is the audio driver — visual already updated above, nothing more needed
+      // CT is the sole audio driver — visual updated above, no other audio action
+      _ctLog('showPtr apply: CT is audio driver — PN/speech suppressed');
     } else if (!ST.addrMode && VN.mode !== 'off' && CT.cues) {
       ctStart(p); // start CT from this pointer (user gesture context)
-      // ctStart is async; if it fails, the next showPtr call will try again.
-      // We intentionally skip pnTryPlay here — avoid two audio streams.
+      // ctStart silences all other sources internally before play()
     } else {
       // CT not available (addrMode, cues not loaded, VN off) — individual MP3 fallback
       if (!pnTryPlay(p, txt)) {
-        vnSpeak(txt); // speechSynthesis — used when narration is off, or addr mode
+        vnSpeak(txt); // speechSynthesis fallback
       }
     }
   }
