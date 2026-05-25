@@ -92,13 +92,13 @@ a{color:var(--accent);text-decoration:none}
 /* ── Pointer text ── */
 .ptr-wrap{text-align:center;max-width:560px;width:100%;margin-top:1.2rem;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4rem;
-  padding:0 .5rem;max-height:42vh;overflow:hidden}
+  padding:0 .5rem;max-height:58vh;overflow:visible}
 .ptr-grp{font-size:.64rem;letter-spacing:.2em;text-transform:uppercase;color:var(--txt3);
   opacity:0;transition:opacity 1.6s ease}
 .ptr-grp.on{opacity:1}
 .ptr-text{font-family:var(--serif);font-size:clamp(1rem,3.4vw,1.6rem);font-style:italic;
-  font-weight:300;color:var(--quote);line-height:1.45;opacity:0;
-  transition:opacity 1.8s ease;overflow:hidden}
+  font-weight:300;color:var(--quote);line-height:1.5;opacity:0;
+  transition:opacity 1.8s ease;overflow:visible;word-break:break-word}
 .ptr-text.on{opacity:1}
 .ptr-count{font-size:.62rem;color:var(--txt3);letter-spacing:.12em;opacity:0;
   transition:opacity 1.6s ease;margin-top:.1rem}
@@ -513,7 +513,7 @@ a{color:var(--accent);text-decoration:none}
   .ring.r2{width:100px;height:100px}
   .ring.r3{width:64px;height:64px}
   .arc-svg{width:136px;height:136px}
-  .ptr-wrap{margin-top:.7rem;max-height:38vh}
+  .ptr-wrap{margin-top:.7rem;max-height:54vh;overflow:visible}
 }
 @media(max-width:360px){
   .ptr-text{font-size:.95rem}
@@ -2052,9 +2052,9 @@ function persist() {
 
 // ─── Pool filtering by level rank ───────────────────────────────
 function getPool() {
-  if (ST.level === 'all') return ALL;  // all levels in natural order
+  if (ST.level === 'all') return ALL;  // all levels together
   const rank = LEVEL_RANK[ST.level] ?? 0;
-  return ALL.filter(p => (LEVEL_RANK[p.minLevel] ?? 0) <= rank);  // this level + all below
+  return ALL.filter(p => (LEVEL_RANK[p.minLevel] ?? 0) === rank);  // exact level only
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2627,7 +2627,8 @@ function showPtr(instant = false) {
     ptEl.textContent = '”' + txt + '”';
     // Adaptive font: shrink for long pointers so text never overflows
     const cl = txt.length;
-    ptEl.style.fontSize = cl > 160 ? 'clamp(0.78rem,2.4vw,1.05rem)'
+    ptEl.style.fontSize = cl > 200 ? 'clamp(0.72rem,2.1vw,0.92rem)'
+                        : cl > 160 ? 'clamp(0.78rem,2.4vw,1.05rem)'
                         : cl > 110 ? 'clamp(0.86rem,2.7vw,1.2rem)'
                         : cl > 75  ? 'clamp(0.94rem,3.0vw,1.38rem)'
                         : '';
