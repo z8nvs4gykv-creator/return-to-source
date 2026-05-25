@@ -64,14 +64,14 @@ a{color:var(--accent);text-decoration:none}
 
 /* ── Orb ── */
 .med-body{flex:1;display:flex;flex-direction:column;align-items:center;
-  justify-content:center;padding:0.5rem 2rem 0;overflow:hidden}
-.orb-wrap{position:relative;width:168px;height:168px;display:flex;
+  justify-content:center;padding:0 1.6rem 0.5rem;overflow:hidden}
+.orb-wrap{position:relative;width:152px;height:152px;display:flex;
   align-items:center;justify-content:center;flex-shrink:0}
 .ring{position:absolute;border-radius:50%;border:1px solid rgba(77,184,212,.07);
   animation:ring-pulse 7s ease-in-out infinite}
-.ring.r1{width:168px;height:168px}
-.ring.r2{width:124px;height:124px;animation-delay:1.6s}
-.ring.r3{width:80px;height:80px;animation-delay:3.2s}
+.ring.r1{width:152px;height:152px}
+.ring.r2{width:112px;height:112px;animation-delay:1.6s}
+.ring.r3{width:72px;height:72px;animation-delay:3.2s}
 @keyframes ring-pulse{0%,100%{opacity:.18;transform:scale(1)}50%{opacity:.55;transform:scale(1.04)}}
 .orb-core{width:40px;height:40px;border-radius:50%;
   background:radial-gradient(circle at 38% 35%,rgba(140,230,250,.85),rgba(40,140,180,.45));
@@ -80,7 +80,7 @@ a{color:var(--accent);text-decoration:none}
 @keyframes orb-breathe{
   0%,100%{transform:scale(1);box-shadow:0 0 24px rgba(77,184,212,.38),0 0 64px rgba(77,184,212,.12)}
   50%{transform:scale(1.24);box-shadow:0 0 38px rgba(77,184,212,.58),0 0 96px rgba(77,184,212,.2)}}
-.arc-svg{position:absolute;top:0;left:0;width:168px;height:168px;
+.arc-svg{position:absolute;top:0;left:0;width:152px;height:152px;
   transform:rotate(-90deg);overflow:visible}
 .arc-track{fill:none;stroke:rgba(77,184,212,.06);stroke-width:1.5}
 #arc-fill{fill:none;stroke:rgba(77,184,212,.52);stroke-width:1.5;stroke-linecap:round;
@@ -90,18 +90,18 @@ a{color:var(--accent);text-decoration:none}
 @keyframes arc-go{from{stroke-dashoffset:var(--circ)}to{stroke-dashoffset:0}}
 
 /* ── Pointer text ── */
-.ptr-wrap{text-align:center;max-width:560px;width:100%;margin-top:1.2rem;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4rem;
-  padding:0 .5rem;max-height:58vh;overflow:visible}
-.ptr-grp{font-size:.64rem;letter-spacing:.2em;text-transform:uppercase;color:var(--txt3);
+.ptr-wrap{text-align:center;max-width:560px;width:100%;margin-top:.7rem;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.55rem;
+  padding:0 .2rem;max-height:62vh;overflow:visible}
+.ptr-grp{font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;color:var(--txt3);
   opacity:0;transition:opacity 1.6s ease}
 .ptr-grp.on{opacity:1}
-.ptr-text{font-family:var(--serif);font-size:clamp(1rem,3.4vw,1.6rem);font-style:italic;
-  font-weight:300;color:var(--quote);line-height:1.5;opacity:0;
+.ptr-text{font-family:var(--serif);font-size:clamp(1.35rem,5.8vw,2rem);font-style:italic;
+  font-weight:300;color:var(--quote);line-height:1.65;opacity:0;
   transition:opacity 1.8s ease;overflow:visible;word-break:break-word}
 .ptr-text.on{opacity:1}
-.ptr-count{font-size:.62rem;color:var(--txt3);letter-spacing:.12em;opacity:0;
-  transition:opacity 1.6s ease;margin-top:.1rem}
+.ptr-count{font-size:.65rem;color:var(--txt3);letter-spacing:.12em;opacity:0;
+  transition:opacity 1.6s ease;margin-top:.15rem}
 .ptr-count.on{opacity:1}
 
 /* ── Dots / Controls ── */
@@ -129,7 +129,7 @@ a{color:var(--accent);text-decoration:none}
   transition:opacity .4s;flex-shrink:0}
 
 /* ── Level strip (meditate screen) — 2-row layout ── */
-.lvl-strip{display:flex;gap:.5rem .45rem;flex-wrap:wrap;padding:.2rem 1rem .5rem;
+.lvl-strip{display:flex;gap:.5rem .45rem;flex-wrap:wrap;padding:.1rem 1rem .4rem;
   flex-shrink:0;justify-content:center;align-items:center}
 .lvl-strip-break{width:100%;flex-basis:100%;height:0;display:block}
 .lvl-pill{flex-shrink:0;display:flex;align-items:center;gap:.35rem;
@@ -505,22 +505,23 @@ a{color:var(--accent);text-decoration:none}
 /* ── Responsive ── */
 @media(min-width:600px){
   .med-body{max-width:600px;margin:0 auto;width:100%}
-  .ptr-text{font-size:clamp(1.1rem,3.2vw,1.6rem)}
+  .ptr-text{font-size:clamp(1.4rem,3.6vw,2rem)}
 }
 @media(max-width:480px){
-  .orb-wrap{width:136px;height:136px}
-  .ring.r1{width:136px;height:136px}
-  .ring.r2{width:100px;height:100px}
-  .ring.r3{width:64px;height:64px}
-  .arc-svg{width:136px;height:136px}
-  .ptr-wrap{margin-top:.7rem;max-height:54vh;overflow:visible}
+  .orb-wrap{width:124px;height:124px}
+  .ring.r1{width:124px;height:124px}
+  .ring.r2{width:92px;height:92px}
+  .ring.r3{width:58px;height:58px}
+  .arc-svg{width:124px;height:124px}
+  .ptr-wrap{margin-top:.5rem;max-height:58vh;overflow:visible}
+  .ptr-text{font-size:clamp(1.3rem,5.5vw,1.9rem)}
 }
 @media(max-width:360px){
-  .ptr-text{font-size:.95rem}
-  .orb-wrap{width:116px;height:116px}
-  .ring.r1{width:116px;height:116px}
-  .ring.r2{width:86px;height:86px}
-  .ring.r3{width:56px;height:56px}
+  .ptr-text{font-size:clamp(1.15rem,5vw,1.6rem)}
+  .orb-wrap{width:108px;height:108px}
+  .ring.r1{width:108px;height:108px}
+  .ring.r2{width:80px;height:80px}
+  .ring.r3{width:52px;height:52px}
   .arc-svg{width:116px;height:116px}
   .cbtn.lg{width:56px;height:56px}
   .cbtn.sm{width:40px;height:40px}
