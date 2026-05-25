@@ -2280,6 +2280,23 @@ function pnInit() {
   PN.el = document.getElementById('pn-audio');
 }
 
+// ── iOS single-element anchor trick ─────────────────────────────
+// iOS Safari only keeps ONE <audio> element playing in the background.
+// If pn-audio goes silent between narrations, iOS pauses it on lock.
+// Fix: when a narration ends, immediately switch pn-audio to loop
+// anchor.mp3 at near-zero volume. The SAME element never stops,
+// so iOS never pauses it. When the next narration starts, switch src
+// back to the MP3 file at full volume.
+function _pnAnchorStart() {
+  if (!PN.el) return;
+  PN.el.onended = null;
+  PN.el.onerror = null;
+  PN.el.loop   = true;
+  PN.el.volume = 0.001;
+  PN.el.src    = './anchor.mp3';
+  PN.el.play().catch(() => {});
+}
+
 // Stop all PN activity immediately (safe to call anytime).
 function pnStop() {
   clearTimeout(PN.pauseTimer);
@@ -2290,9 +2307,11 @@ function pnStop() {
   if (PN.el) {
     PN.el.onended = null;
     PN.el.onerror = null;
+    PN.el.loop = false;
     PN.el.pause();
     try { PN.el.src = ''; PN.el.load(); } catch(e) {}
   }
+  vnSetDot(false);
 }
 
 // Post-audio silence gap: same durations as vnKeepAlive afterFn.
@@ -2327,11 +2346,14 @@ function pnTryPlay(p, txt, preDelay = 1200) {
 
   PN.preDelayTimer = setTimeout(() => {
     PN.preDelayTimer = null;
+    PN.el.loop   = false;   // exit anchor-loop mode
+    PN.el.volume = 1.0;     // full volume for narration
     PN.el.src = p.audio;
 
     function _onEnded() {
       PN.active = false;
       vnSetDot(false);
+      _pnAnchorStart();     // keep iOS session alive during the pause gap
       _pnScheduleAdvance();
     }
     function _onError() {
