@@ -2050,6 +2050,7 @@ const ST = {
   totalPtrs: saved.totalPtrs || 0,
   advTimer: null, sessTimer: null, ctrlTimer: null, sessRemain: 0,
   audio: null, ambNodes: null, ambGain: null, bowlTimer: null,
+  sndGain: null, _sndWasRunning: false,
   // Addressing (mood) mode
   addrMode: false, addrPtrs: [], addrIdx: 0,
   // Beginner task
@@ -2186,28 +2187,70 @@ function startDrone() {
 function stopDrone() {
   if (!ST.ambNodes) return;
   ST.ambGain.gain.setTargetAtTime(0, ST.audio.currentTime, 0.8);
+  const capturedAmbGain = ST.ambGain;
   setTimeout(() => {
     try { ST.ambNodes.forEach(o => o.stop()); } catch {}
-    ST.ambNodes = null; ST.ambGain = null;
+    try { capturedAmbGain.disconnect(); } catch {}
+    ST.ambNodes = null;
+    if (ST.sndGain === capturedAmbGain) ST.sndGain = null;
+    ST.ambGain = null;
   }, 3000);
 }
+function _sndFadeOutGain(g, cb) {
+  // Fade out an orphaned master gain and disconnect it cleanly
+  if (!g || !ST.audio) { if (cb) cb(); return; }
+  try {
+    g.gain.cancelScheduledValues(ST.audio.currentTime);
+    g.gain.setTargetAtTime(0, ST.audio.currentTime, 0.3);
+    setTimeout(() => { try { g.disconnect(); } catch(e) {} if (cb) cb(); }, 1400);
+  } catch(e) { try { g.disconnect(); } catch(e2) {} if (cb) cb(); }
+}
 function applySnd() {
+  console.log('[SND] applySnd | sndType=' + ST.sndType + ' sndOn=' + ST.sndOn);
   if (ST.bowlTimer) { clearInterval(ST.bowlTimer); ST.bowlTimer = null; }
-  stopDrone();
+
+  // Fade out + disconnect any previously active master gain to prevent
+  // orphaned nodes from blasting at full volume after iOS AudioContext resume
+  if (ST.sndGain && ST.sndGain !== ST.ambGain) {
+    console.log('[SND] fading out old sndGain');
+    _sndFadeOutGain(ST.sndGain, null);
+    ST.sndGain = null;
+  }
+  stopDrone();  // handles ambGain/drone nodes
+
   const btn = q('btn-sound'), lbl = q('sound-lbl');
-  if (!ST.sndOn) { btn.textContent = '🔇'; btn.classList.remove('on'); lbl.textContent = T().soundOff; return; }
+  if (!ST.sndOn) {
+    btn.textContent = '🔇'; btn.classList.remove('on'); lbl.textContent = T().soundOff;
+    console.log('[SND] sound off'); return;
+  }
   ensureAudio(); btn.classList.add('on');
+
   if (ST.sndType === 'bowls') {
     btn.textContent = '🎵'; lbl.textContent = T().singingBowls;
-    const g = mkGain(0.65); bowl(g);
-    ST.bowlTimer = setInterval(() => { if (ST.sndOn) bowl(g); }, 14000);
+    // Create master gain at 0 and ramp to target over 2.5 s — no violent burst
+    const g = ST.audio.createGain();
+    g.gain.setValueAtTime(0, ST.audio.currentTime);
+    g.gain.linearRampToValueAtTime(0.65, ST.audio.currentTime + 2.5);
+    g.connect(ST.audio.destination);
+    ST.sndGain = g;
+    console.log('[SND] bowl start — fading in over 2.5s');
+    bowl(g);
+    ST.bowlTimer = setInterval(() => { if (ST.sndOn && ST.sndGain === g) { console.log('[SND] bowl tick'); bowl(g); } }, 14000);
   } else if (ST.sndType === 'bells') {
     btn.textContent = '🔔'; lbl.textContent = T().bells;
-    const g = mkGain(0.55); bell(g);
-    ST.bowlTimer = setInterval(() => { if (ST.sndOn) bell(g); }, 7000);
+    const g = ST.audio.createGain();
+    g.gain.setValueAtTime(0, ST.audio.currentTime);
+    g.gain.linearRampToValueAtTime(0.55, ST.audio.currentTime + 2.5);
+    g.connect(ST.audio.destination);
+    ST.sndGain = g;
+    console.log('[SND] bell start — fading in over 2.5s');
+    bell(g);
+    ST.bowlTimer = setInterval(() => { if (ST.sndOn && ST.sndGain === g) { console.log('[SND] bell tick'); bell(g); } }, 7000);
   } else if (ST.sndType === 'drone') {
     btn.textContent = '〜'; lbl.textContent = T().deepDrone;
     startDrone();
+    ST.sndGain = ST.ambGain;
+    console.log('[SND] drone start');
   } else {
     btn.textContent = '🔇'; lbl.textContent = T().soundOff; btn.classList.remove('on');
   }
@@ -3528,6 +3571,8 @@ function meditateStop() {
   ctStop();                                              // stop continuous track
   stopDrone();
   if (ST.bowlTimer) { clearInterval(ST.bowlTimer); ST.bowlTimer = null; }
+  if (ST.sndGain) { _sndFadeOutGain(ST.sndGain, null); ST.sndGain = null; }
+  ST._sndWasRunning = false;
   clearInterval(ST.advTimer);
   clearTimeout(ST.advTimer);
   arcPause();
@@ -4430,6 +4475,22 @@ window.addEventListener('appinstalled', () => {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
       _lockedAt = Date.now();
+      console.log('[SND] visibility hidden | sndOn=' + ST.sndOn + ' sndGain=' + !!ST.sndGain);
+
+      // Gracefully fade out ambient sounds before iOS suspends the AudioContext.
+      // This zeros the gain of the active master node so that when the context
+      // resumes on unlock the stale node is silent — no violent burst.
+      if (ST.sndOn && ST.sndGain) {
+        ST._sndWasRunning = true;
+        console.log('[SND] fading out ambient sound on lock');
+        try {
+          ST.sndGain.gain.cancelScheduledValues(ST.audio.currentTime);
+          ST.sndGain.gain.setTargetAtTime(0, ST.audio.currentTime, 0.35);
+        } catch(e) {}
+        if (ST.bowlTimer) { clearInterval(ST.bowlTimer); ST.bowlTimer = null; }
+      } else {
+        ST._sndWasRunning = !!(ST.sndOn && ST.screen === 'meditate');
+      }
 
       // CT should already be playing (started when first pointer was shown).
       // If CT is not active yet (cues not loaded, narration off) fall back to silentEl.
@@ -4479,9 +4540,24 @@ window.addEventListener('appinstalled', () => {
       if (!ST.paused && ST.mode !== 'man' && VN.mode === 'off') arcStart();
     }
 
-    // 4. Restart Meditate ambient sounds if they were running
-    if (ST.screen === 'meditate' && ST.sndOn) {
-      try { applySnd(); } catch(e) {}
+    // 4. Restart Meditate ambient sounds if they were running before lock.
+    //    IMPORTANT: never call applySnd() immediately here — the AudioContext
+    //    may not be fully resumed yet, and creating a new gain at full volume
+    //    while old orphaned nodes are still connected causes a violent burst.
+    //    Instead wait 300 ms for resume to settle, then call applySnd() which
+    //    creates the new master gain at 0 and ramps up over 2.5 s.
+    if (ST.screen === 'meditate' && ST.sndOn && ST._sndWasRunning) {
+      ST._sndWasRunning = false;
+      // Null out the old faded gain so applySnd() won't try to fade it out again
+      ST.sndGain = null;
+      console.log('[SND] visibility visible — scheduling soft ambient restart in 300ms');
+      setTimeout(() => {
+        if (!ST.sndOn || ST.screen !== 'meditate') return;
+        console.log('[SND] soft ambient restart after unlock');
+        try { applySnd(); } catch(e) {}
+      }, 300);
+    } else {
+      ST._sndWasRunning = false;
     }
 
     // 5. Restart Mantra visual cycle if it was playing but timers died
