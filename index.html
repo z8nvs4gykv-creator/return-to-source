@@ -2296,7 +2296,10 @@ const VN = {
   voiceName: '',             // saved by name (voice objects don't persist)
   speaking:  false,
   pauseTimer: null,          // pre-speech delay handle
+  speakId:   0,              // generation counter — incremented on every vnSpeak(); stale callbacks compare this
 };
+// Detect iOS once at startup — used to skip the Chrome keepalive hack that degrades iOS voice quality
+const _VN_IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
 // ═══════════════════════════════════════════════════════════════
 // PN — POINTER NATIVE AUDIO NARRATION
@@ -2351,6 +2354,9 @@ function _pnAnchorStart() {
 
 // Stop all PN activity immediately (safe to call anytime).
 function pnStop() {
+  if (PN.active || PN.preDelayTimer || PN.pauseTimer) {
+    console.log('[VN] narration cancelled (pnStop) active=' + PN.active);
+  }
   clearTimeout(PN.pauseTimer);
   clearTimeout(PN.preDelayTimer);
   PN.pauseTimer = null;
@@ -2395,6 +2401,7 @@ function _pnScheduleAdvance() {
 // and falls back to vnSpeak(txt) internally if the file errors or play() rejects.
 function pnTryPlay(p, txt, preDelay = 1200) {
   if (VN.mode === 'off' || !PN.el || !p || !p.audio) return false;
+  console.log('[VN] narration start (PN MP3) gi=' + p.gi + ' pi=' + p.pi + ' src=' + p.audio);
   pnStop();  // cancel any previous pointer's audio + timers
 
   PN.preDelayTimer = setTimeout(() => {
@@ -2567,6 +2574,24 @@ function ctStart(p) {
 
   _ctLog('ctStart → play() fired for pointer gi='+p.gi+' pi='+p.pi+' t='+startTime.toFixed(1)+'s');
 
+  // When the continuous track ends naturally (all pointers spoken), clear CT.active
+  // so the next showPtr() / pointer advance can restart CT from the new position.
+  // Without this, CT.active stays true forever, next() returns early, and everything
+  // silently freezes — no audio, no advancement.
+  CT.el.onended = () => {
+    if (CT.epoch !== myEpoch) return; // stale (ctStop already cleared this)
+    _ctLog('ctStart onended — track finished naturally, clearing CT.active');
+    CT.active   = false;
+    CT.starting = false;
+    if (_ctSyncTimer) { clearInterval(_ctSyncTimer); _ctSyncTimer = null; }
+    // The arc fallback timer (if active) or next manual tap will call showPtr()
+    // which will re-start CT from the current pointer's cue timestamp.
+    // If the fallback timer isn't running, restart it now.
+    if (!ST.paused && VN.mode !== 'off' && !CT.active) {
+      resetAdv(); // restarts the fallback interval so pointers keep advancing
+    }
+  };
+
   CT.el.play().then(() => {
     if (CT.epoch !== myEpoch) {
       // ctStop() was called while play() was pending — discard this callback
@@ -2576,6 +2601,7 @@ function ctStart(p) {
     CT.starting = false;
     CT.active   = true;
     _ctLog('ctStart ACTIVE — CT is now the sole narration source');
+    console.log('[VN] narration start (CT) pointer gi=' + p.gi + ' pi=' + p.pi);
     // CT is now the iOS audio session holder — mantra.mp3-equivalent
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
     // Start visual sync interval
@@ -2607,7 +2633,7 @@ function ctStop() {
   }
   CT.active   = false;
   CT.starting = false;
-  try { CT.el.src = ''; CT.el.load(); } catch(e) {}
+  try { CT.el.onended = null; CT.el.src = ''; CT.el.load(); } catch(e) {}
 }
 
 // ── Load / rank available voices ────────────────────────────────
@@ -2681,6 +2707,9 @@ function vnPopulateSelect() {
 
 // ── Stop any current speech + native pointer audio immediately ──
 function vnStop() {
+  if (VN.speaking || VN.pauseTimer) {
+    console.log('[VN] narration cancelled (vnStop) speaking=' + VN.speaking);
+  }
   clearTimeout(VN.pauseTimer);
   VN.pauseTimer = null;
   if (VN.supported) {
@@ -2694,41 +2723,55 @@ function vnStop() {
 // ── Speak a text string ─────────────────────────────────────────
 function vnSpeak(text, preDelay = 1200) {
   if (VN.mode === 'off' || !VN.supported || !VN.voice) return;
-  vnStop();   // cancel anything playing
+  vnStop();   // cancel anything playing + clears any stale timers
   const params = NARR_MODES[VN.mode];
   if (!params) return;
 
+  // Increment generation ID — any in-flight callback from a previous utterance
+  // that fires (e.g. iOS firing onend instead of onerror on cancel) will see a
+  // mismatched ID and discard itself silently.
+  const myId = ++VN.speakId;
+  console.log('[VN] narration start (speakId=' + myId + ') preDelay=' + preDelay + 'ms | text="' + text.slice(0, 40) + '…"');
+
   VN.pauseTimer = setTimeout(() => {
     VN.pauseTimer = null;
+    // Guard: if a newer vnSpeak() was called while we were waiting, abort.
+    if (VN.speakId !== myId) {
+      console.log('[VN] stale narration callback ignored (preDelay) id=' + myId);
+      return;
+    }
     try {
-      // iOS Safari fix: resume context first
+      // iOS Safari fix: cancel any residual queue, then resume if paused
+      speechSynthesis.cancel();
       if (speechSynthesis.paused) speechSynthesis.resume();
 
       const utt = new SpeechSynthesisUtterance(text);
+      // Always set all params fresh — iOS may have changed voice state since last call
       utt.voice  = VN.voice;
       utt.rate   = params.rate;
       utt.pitch  = params.pitch;
       utt.volume = params.volume;
       utt.lang   = VN.voice.lang || 'en-US';
 
-      utt.onstart = () => { VN.speaking = true; vnSetDot(true); };
-      utt.onend   = () => { VN.speaking = false; vnSetDot(false); };
-      utt.onerror = () => { VN.speaking = false; vnSetDot(false); };
+      utt.onstart = () => {
+        if (VN.speakId !== myId) return; // stale — a newer utterance took over
+        VN.speaking = true; vnSetDot(true);
+        console.log('[VN] utterance started (speakId=' + myId + ')');
+      };
+      // onend/onerror set by vnKeepAlive below
 
       speechSynthesis.speak(utt);
 
-      // Chrome desktop bug: speech sometimes silently stops after ~15 s
-      // Keep alive by re-checking every 10 s; when done, drive auto-advance
-      vnKeepAlive(utt, () => {
+      // Drive auto-advance after speech ends.
+      // afterFn is guarded by myId so stale callbacks don't call next().
+      vnKeepAlive(utt, myId, () => {
         // Narration-driven advance with level-aware post-speech pause.
         // Clear the fallback timer first so it doesn't double-fire with speech.
         if (VN.mode !== 'off' && !ST.paused && ST.mode !== 'man' && !ST.addrMode) {
           clearTimeout(ST.advTimer); clearInterval(ST.advTimer);
-          // Determine effective level (for "all" mode, use current pointer's level)
           const pool = getPool();
           const curPtr = pool[ST.cur % pool.length];
           const effectiveLevel = ST.level === 'all' ? (curPtr ? curPtr.minLevel : 'beginner') : ST.level;
-          // Post-speech pause: Beginner ~10s (total ~15-20s), Seeker ~22s (total ~30s), Advanced/Sahaja ~32s (total ~40s)
           const pauseMs = (effectiveLevel === 'advanced' || effectiveLevel === 'sahaja') ? 32000
                         : effectiveLevel === 'seeker' ? 22000 : 10000;
           ST.advTimer = setTimeout(() => { if (!ST.paused && VN.mode !== 'off') next(); }, pauseMs);
@@ -2738,17 +2781,38 @@ function vnSpeak(text, preDelay = 1200) {
   }, preDelay);
 }
 
-// Chrome keep-alive patch — accepts optional afterFn for narration-driven advance
-function vnKeepAlive(utt, afterFn) {
+// Keep-alive + completion callback for speechSynthesis utterances.
+// speakId: generation counter from vnSpeak — callbacks abort if it changed.
+// afterFn: called when the utterance completes legitimately (not on cancel/error).
+//
+// IMPORTANT: The pause()/resume() trick is a Chrome desktop-only fix for a Chrome bug
+// where speech silently stops after ~15s. On iOS Safari it has the OPPOSITE effect —
+// it causes voice pitch, rate, and quality to corrupt after 2–3 cycles (20–30s),
+// producing the "slow, dull, muffled voice" symptom. We skip it on iOS.
+function vnKeepAlive(utt, speakId, afterFn) {
   const interval = setInterval(() => {
     if (!VN.speaking) { clearInterval(interval); return; }
+    if (_VN_IS_IOS) return; // iOS: DO NOT pause/resume — it degrades voice quality
     try { speechSynthesis.pause(); speechSynthesis.resume(); } catch {}
   }, 10000);
+
   utt.onend = () => {
     VN.speaking = false; vnSetDot(false); clearInterval(interval);
+    // Guard: iOS sometimes fires onend instead of onerror when cancel() is called.
+    // A mismatched speakId means this utterance was superseded — discard silently.
+    if (VN.speakId !== speakId) {
+      console.log('[VN] stale onend ignored (speakId mismatch: got ' + speakId + ' current ' + VN.speakId + ')');
+      return;
+    }
+    console.log('[VN] utterance ended cleanly (speakId=' + speakId + ')');
     if (afterFn) afterFn();
   };
-  utt.onerror = () => { VN.speaking = false; vnSetDot(false); clearInterval(interval); };
+
+  utt.onerror = (e) => {
+    VN.speaking = false; vnSetDot(false); clearInterval(interval);
+    console.log('[VN] utterance error/cancelled (speakId=' + speakId + ') type=' + (e && e.error));
+    // onerror = cancelled → do NOT call afterFn (avoids spurious next())
+  };
 }
 
 function vnSetDot(on) {
@@ -2953,9 +3017,16 @@ function vnInit() {
     });
   }
 
-  // Page visibility — stop speech when user backgrounds the app
+  // Page visibility — stop speechSynthesis/PN when user backgrounds the app.
+  // CT is intentionally NOT stopped here — it is a native audio element that
+  // continues playing through iOS lock screen (same as mantra.mp3).
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) vnStop();
+    if (document.hidden) {
+      console.log('[VN] visibility hidden — stopping speech/PN | CT.active=' + CT.active + ' mantra preserved=' + AB.isPlaying);
+      vnStop(); // cancels speechSynthesis + PN; does NOT touch CT.el or AB.mantraAudioEl
+    } else {
+      console.log('[VN] visibility visible — resume narration requested | CT.active=' + CT.active);
+    }
   });
 
   vnUpdateCompatNote();
@@ -3057,6 +3128,7 @@ function showPtr(instant = false) {
     if (CT.active || CT.starting) {
       // CT is the sole audio driver — visual updated above, no other audio action
       _ctLog('showPtr apply: CT is audio driver — PN/speech suppressed');
+      console.log('[VN] narration duplicate prevented — CT already ' + (CT.active ? 'active' : 'starting'));
     } else if (!ST.addrMode && VN.mode !== 'off' && CT.cues) {
       ctStart(p); // start CT from this pointer (user gesture context)
       // ctStart silences all other sources internally before play()
@@ -4495,6 +4567,8 @@ window.addEventListener('appinstalled', () => {
       // CT should already be playing (started when first pointer was shown).
       // If CT is not active yet (cues not loaded, narration off) fall back to silentEl.
       if (!CT.active && (!PN.el || PN.el.paused)) _startSilent();
+      if (!CT.active) console.log('[VN] pointer timer paused due to hidden state (CT not running — fallback timer will advance on unlock)');
+      if (AB.isPlaying) console.log('[VN] mantra MP3 preserved — AB.mantraAudioEl untouched');
 
       if ('mediaSession' in navigator) {
         const anyPlaying = AB.isPlaying || CT.active || (PN.el && !PN.el.paused);
@@ -4520,6 +4594,7 @@ window.addEventListener('appinstalled', () => {
     // 3. CT has been playing through the lock — restart sync interval and
     //    immediately sync visual pointer to CT's current playback position.
     if (CT.active) {
+      console.log('[VN] resume narration requested — CT still active, restarting sync (lockedMs=' + lockedMs + ')');
       if (_ctSyncTimer) clearInterval(_ctSyncTimer);
       _ctSyncTimer = setInterval(_ctSyncPointer, 750);
       _ctSyncPointer(); // immediate sync to catch up any pointer changes
@@ -4527,6 +4602,7 @@ window.addEventListener('appinstalled', () => {
     }
 
     // 4. Catch up Meditate pointer advancement (fallback: CT not available)
+    console.log('[VN] resume narration requested — CT not active, catch-up (lockedMs=' + lockedMs + ')');
     if (ST.screen === 'meditate' && !ST.paused && lockedMs > 500) {
       const pool = getPool();
       if (pool.length > 0 && ST.dur > 0) {
